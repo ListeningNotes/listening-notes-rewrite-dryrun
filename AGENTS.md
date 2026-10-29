@@ -34,12 +34,20 @@ The real ones, from `package.json`. There are no others.
 | `npm run lint` | `eslint`, configured in `eslint.config.mjs`. |
 | `npm run backup` | Every table to `$BACKUP_DIR/<timestamp>/` (`scripts/backup.mjs`; see docs/OPERATIONS.md). |
 | `npm run restore -- <path>` | Dry run of a restore; add `--yes` to write (`scripts/restore.mjs`). |
+| `npm run letterhead -- …` | The canonical keeper's, on her Mac: `keys` makes the LN. Admin key, `send <journal> --said "…"` seals and posts a letter, `prompt <journal> … --said "…" --month "…" --until YYYY-MM-DD` seals and pins the month's prompt (`scripts/letterhead.mjs`; see docs/OPERATIONS.md). |
+| `npm run hosting-directory -- …` | The hosting directory by hand, on a deployment that hosts journals: `key`, `remember`, `place <address>` (the way in read off the clipboard), `list`, `check <address>`, `move <address>` (a dry run; add `--yes` to move) (`scripts/hosting_directory.mjs`; see docs/OPERATIONS.md). |
 
 **Migrations have no command.** The files in `migrations/` apply themselves,
 in filename order, on every server start (`instrumentation.js` →
 `library/migrator.js`) and at the start of `npm run build`. A schema change is
 a new numbered `.sql` file and nothing else; the ledger is the
 `schema_migrations` table.
+
+**The live site serves `release`, not main.** The canonical deployment's
+production branch is `release`, moved only as the last step of cutting a
+release (docs/OPERATIONS.md, Releases and the live site), so a push to main
+changes nobody's journal, hosted or self-hosted, until a release is cut. Never
+push to `release` any other way.
 
 **Run the build before reporting anything as done**, and lint. Stop the dev
 server first: `npm run build` while `next dev` is up leaves stylesheets and
@@ -59,6 +67,15 @@ is typed by hand anyway, the check and the commit share one statement,
 build stays out of the hook: it cannot run beside the dev server, and a
 commit should take seconds.
 
+**Commits are the keeper's, and git checks that too.** `.githooks/commit-msg`
+refuses a commit whose author, committer or trailers name a tool, or that is
+not signed off. Before the first commit of a session, in any checkout — a
+cloud copy included — run `git config core.hooksPath .githooks` and check
+that `git config user.name` is a person. If it is a tool's name, or empty,
+stop and ask; never commit as the tool. Three commits reached main as a
+tool, 2026-10-01 and 2026-10-13, and undoing them was a rewrite of main's
+history and a force-push.
+
 # Never
 
 Hard constraints. Each one, broken, breaks a journal that is not this one — a
@@ -72,22 +89,50 @@ reasoning; these are inline so nobody has to go looking.
 - **No journal address is ever printed on a page.** A journal is shown by its
   keeper's name and face; the address lives in the link and in the QR code. A
   host is printed only when nothing else is known, never by choice.
-- **No counts, badges, streaks or follower numbers anywhere.** Presence is
+- **No counts, badges, streaks or follower numbers attached to a person** —
+  not listens, not gifts, not who added whom, not who is reading. Presence is
   outbound: a journal shows what its keeper is logging and never who is
-  reading, who added whom, or how many. Gifts are not counted either.
+  reading it. A count may sit on a record ("3 keepers") and on the community
+  ("214 keepers · 7 logging"), because neither names anybody and neither can
+  be grown. A row is a name and a beacon; never a number beside a person.
+- **Nothing is ordered by how much someone logs.** Where there is no better
+  order — distance from the viewer, newest — shuffle. No "most active", no
+  ranking of people, anywhere.
 - **Never write to another keeper's database.** The only things one copy may
-  put into another are a send, a wave and a message, each on a keeper's
-  press, through that copy's own public route. Everything else about another
-  journal is read from its public feed and routes.
-- **Nobody's words are drawn on a journal but its keeper's.** No comments, no
-  threads, nothing a visitor wrote shown on an entry or anywhere else. What
-  somebody has to say goes to the keeper as a message and lives in the inbox;
-  it is public only if the keeper quotes it in their own writing.
+  put into another are a send, a wave and a message, each on a keeper's press,
+  and — into the directory — a listing, which a journal makes unless its
+  keeper has switched it off; each through that copy's own public route. One
+  more thing may arrive by that route: an LN. Admin message — a letter, or
+  the month's prompt — signed, which only the canonical keeper can make
+  (Miyel, 2026-10-20; the prompt, 2026-10-22).
+  Everything else about another journal is read from its public feed and
+  routes.
+- **Nobody writes on anybody else's journal.** No comments, no threads, no
+  words about an album left on somebody else's entry, nothing a visitor wrote
+  shown on an entry or anywhere else. What somebody has to say goes to the
+  keeper as a message and lives in the inbox; it is public only if the keeper
+  quotes it in their own writing. The Board may quote a keeper's own words
+  from their own public entry, linked to it: that is them on their journal,
+  not somebody writing on yours (Miyel, 2026-10-08). So may your page about
+  somebody — a friend, or a keeper off the Board — show their note on a
+  record you both logged, in full: read live
+  from their journal when the record is on screen, stored nowhere, with
+  their face on it and their entry one press away — you reading them, shown
+  only to you (Miyel, 2026-10-24).
 - **No phone-home.** Nothing in a copy reports to the canonical copy or
-  anywhere else: no analytics, no pushed banners or messages, no deploy
+  anywhere else: no analytics, no pushed banners, and one kind of pushed
+  message only — LN. Admin, a letter or the month's prompt, sealed with
+  the canonical keeper's key and refused without it, sent only to the
+  journals it concerns, with nothing reported back, not even that it was
+  read (Miyel, 2026-10-20) — no deploy
   redirect that would log installs, nothing that runs without a press. A copy
   learns of a new version by reading the public releases itself, at most once
-  a day; a problem report leaves only when a keeper presses Send.
+  a day; a problem report, or a record for the month's prompt, leaves only
+  when a keeper presses Send. The one
+  exception, made on purpose: being on the Board. A journal lists itself in
+  the directory unless its keeper switches it off — on by default for
+  everyone, said plainly at setup, off with one switch in Settings (Miyel,
+  2026-10-08) — and the listing carries its address and nothing else.
 - **Never edit or rename a migration that has run, and never write a down
   migration.** The filename is the identity, so an edited or renamed file runs
   again on every copy. A change is a new numbered file, written with
@@ -102,9 +147,14 @@ reasoning; these are inline so nobody has to go looking.
   entry is its address and slug, never an id; a server-to-server send is
   counted against the journal it names, never the IP it arrived from.
 - **Public reads are allow-lists.** The feed (`PUBLIC_FIELDS`) and the wall
-  never carry the writing; a new column stays private until somebody decides
-  otherwise; the chain fields leave only through `withoutChain`, and only on a
-  Submission entry that was not marked quiet.
+  never carry the writing; one entry's album note leaves only through
+  `/api/public/notes/[slug]`, one entry at a time, never for a track note or
+  an entry whose credit was kept quiet; a new column stays private until
+  somebody decides otherwise; the chain fields leave only through `withoutChain`, and only on a
+  Submission entry that was not marked quiet. The address book leaves only
+  through `/api/public/people`: a name and an address for each person who is
+  on the Board themselves, never one added privately, and nothing at all
+  while the keeper is off the Board.
 - **Secrets never reach a browser.** The `secrets` table is read by
   `library/secrets.js` and nothing else, and is never selected with
   `settings`; a page is told whether a key is set and its last four
@@ -116,8 +166,10 @@ reasoning; these are inline so nobody has to go looking.
   becomes a setting.** Titles read `{keeper_name} · Listening Notes` on every
   copy; the Source line and the version ship on every copy, at the foot of
   the card for a visitor, and cannot be switched off; the canonical address,
-  `REPORTS_URL` and `INSTAGRAM_URL` are constants, with an environment
-  variable for a fork.
+  `REPORTS_URL`, `INSTAGRAM_URL`, `DIRECTORY_URL` and `PUBLICATION_URL` are
+  constants, with an environment variable for a fork; so is the public half
+  of the LN. Admin key (`LETTERHEAD_KEY`, in `library/letterhead.js`), which
+  a fork sets to its own or to nothing.
 - **Nothing per entry that grows with the archive on a free tier.** Never
   base64 a picture into a row (a cover's code keeps only its dot); album art
   is a plain `<img>`, never the framework's metered image component; a query
@@ -161,8 +213,13 @@ pages and API routes are indexed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
   ("I can never skip —"), the limit of three, and the reader that turns stored
   key-and-answer pairs into printable lines and drops retired keys.
 - `came_back_actions.js` — the `came_back` table: records this journal put
-  somebody onto that they then logged, noticed by the feed and written down so
-  the inbox can show them as arrivals.
+  somebody onto that they then logged, noticed by People as it reads the
+  book's journals and written down so the inbox can show them as arrivals.
+- `carbon_copy.js` — the journal as pages anybody can read: a Markdown page
+  per entry, saying what the entry page says (its credit rule, its listen
+  numbers, its edit stamps), and the zip that holds them beside the export
+  as `journal.json` with a `Read me.txt` — the zip written by hand, stored,
+  no library. Made in the browser by Back up your journal.
 - `card_links.js` — the marks a card can wear: the rig icons to choose from,
   and which logo a link gets from its hostname or the owner's override.
 - `claim_notice.js` — the boxed lines printed in the build and runtime logs
@@ -178,60 +235,168 @@ pages and API routes are indexed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - `database_actions.js` — entries: the wall's lean list, the public feed's
   allow-list, one entry, one record's folder, save/update/delete (with the
   derived Masterpiece and the edit stamps), slugs, the owner row, briefings and
-  drafts.
+  drafts, and `pull_record_keys`, each record the journal logged, for the
+  Board.
 - `database_connection.js` — the one Neon handle, opened on first use rather
-  than on import, and `explainDatabaseError`, which says a database failure in
+  than on import — on a deployment that hosts journals, the database of the
+  journal the request is for, brought up to date the first time a server
+  instance opens it — `database.transaction`, several statements as one,
+  all or none, and `explainDatabaseError`, which says a database failure in
   a sentence for the owner.
 - `definitions.js` — the shipped text for the three marks (Masterpiece,
   Favorite, Formative) and the merge of the owner's edits over it.
+- `directory_actions.js` — the `directory` table, on the registry's copy:
+  the list for readers (logging first, thirty and a cursor, the community's
+  two counts), the Board's first screen (`pull_board`: everybody logging, a
+  shuffled dozen and the last day's records), a name or record search,
+  `boardHash` and `pull_among` (which of a journal's hashed addresses are on
+  the Board), the `directory_records` table (`refresh_records`, `pull_alike`
+  for "also on your records", `pull_today` for "being logged everywhere"),
+  listing and delisting, reading a journal's beacon, and `gather`, one round
+  of the refresh with its decaying rate — run after a Board is read, its due
+  journals claimed so no two rounds ask one twice; and `pull_covers`, the
+  records keepers on the Board logged lately as covers alone, for the front
+  door's record wall.
 - `doorman.js` — rate limiting, in memory: the doors (login, message, send,
-  wave and so on), how many tries each allows, who is knocking, and the 429
-  answer.
+  wave, listing, the Board's lines and so on), how many tries each allows,
+  who is knocking, and the 429 answer. Every count is filed under the
+  journal it was made at, so `mayKnock` is awaited.
 - `entry_formatter.js` — the shapes an entry is written in: the horizon bar
   from track ratings, `flawless` (what Masterpiece means), tracks to and from
   prose, `lookup_key` (the fold drafts and briefings are keyed on), the edit
   stamp, `entryTypeLabel`.
+- `front_door.js` — the front door, on a deployment that hosts journals
+  (`HOSTED_DOMAIN`): whether an address is free (`nameState`, with
+  `KEPT_NAMES`, the words nobody may start a journal at), the places left of
+  `HOSTED_JOURNALS_MOST`, `make_journal` (a Neon project through the API,
+  brought up to date, its address written, placed in the hosting directory,
+  and its claim code), and `clear_never_set_up`, which takes down a journal it
+  made that nobody set up or wrote in within an hour, giving back its ticket;
+  `openDoor` (`OPEN_DOOR`: anybody may start; unset, only a good ticket) and
+  `ticketAtTheDoor`, the ticket an invite link carries and who it says
+  invited the visitor, asked their name once a request;
+  `frontDoorMetadata`, the front door's title and an invite's preview; and
+  `frontDoorCovers`, the covers on its record wall, asked of the
+  Board's list and kept ten minutes.
 - `gold_burst.js` — the gold sparkle fired when a Masterpiece is marked.
 - `handoff.js` — module variables the wall leaves for the entry layer: the
   tapped record's first-screen fields so the layer opens without a wait, the
   wall's order for swiping to neighbours, and how a layer arrived (by swipe,
   by going back, alone).
+- `hosting_directory.js` — the hosting directory, on a deployment that hosts
+  many journals: which journal lives at which address, the way into each
+  one's database sealed with `HOSTING_DIRECTORY_KEY`, `journalHere` (the
+  journal a request is for, or `NoJournalHere`; `answerNoJournal`, the 404 the
+  public doors give at an address with no journal), `memoryOf` (what a server's
+  memory of one journal is filed under), `deploymentSetting` (the
+  deployment's settings, which speak for no hosted journal), and
+  `forwarding` and `journalAddress`: with `FORWARDING_ADDRESS`, the front
+  door's `www.` is the old address of the journal that moved off it, and is
+  answered as that journal, but for the front door's home and `/get`, which
+  go to the bare domain. Nothing runs without `HOSTING_DIRECTORY_URL`.
+  The forwarding of its pages is in `next.config.mjs`. `studio`: with
+  `STUDIO_ADDRESS`, the bare domain's submissions door is answered as the
+  studio, the publication's own journal (the month's prompt). And
+  `isHere`, on any copy: whether an address is the journal a request
+  reached, by any name it answers to, so a journal never says it moved to
+  itself. And `tickets`, the invitations to start a journal: `make_ticket`
+  (twenty a day, ten waiting), `ticket_state`, `take_ticket` (one journal,
+  once, in one statement), `ticket_made`, `give_back_ticket` and
+  `give_back_tickets_of`; only a code's hash is kept.
 - `install_guide.js` — what `/get` needs: the deploy button's URL and the ten
   install steps with their screenshots and the rings drawn over them.
+- `keyring.js` — the passkeys (`keyring`): a row per device's key, the
+  public half only; the two ceremonies, making a key and opening the door
+  with one, checked by `@simplewebauthn/server`; the challenge kept between
+  them in a cookie signed with a key derived from the secret;
+  `addressOf`, the exact host a key belongs to; and, at the claim,
+  `holds_any` and `keep_only`, so a journal claimed keeps only the keys its
+  claim made.
+- `letterhead.js` — LN. Admin letters: the canonical keeper's public key
+  (`LETTERHEAD_KEY`), `read_letter`, which checks a letter's Ed25519 seal,
+  that it is for this journal and newer than the last one kept, and
+  `keep_letter`, which pins it in `messages` as the one letter there is;
+  and `ask_for_copy`, the letter a journal writes itself asking for a copy
+  — sixty days on, with writing no copy holds — which carries the one door
+  a letter has, Make a copy; and the month's prompt, checked the same way
+  under a seal of its own (`sealed_prompt`, `read_prompt`).
 - `message_actions.js` — the `messages` table: somebody's words to the
-  keeper, kept, listed for the inbox, opened, marked replied to, and
-  dismissed — which deletes, and takes the comment a message was with it.
+  keeper, kept, listed, opened, marked replied to, kept without a reply
+  (`keep_message`, Keep on a friend's face), and dismissed — which deletes,
+  and takes the comment a message was with it; the LN. Admin letter alone
+  (`pull_letter`, for home); and Words: `said_back`, what the keeper wrote
+  back once it landed (`save_said_back`), both sides with one journal
+  (`pull_words`), and since when this copy kept its side.
 - `migrator.js` — brings the database up to date from `migrations/` on start
   and at build, under a session-level advisory lock, on the direct (unpooled)
   endpoint.
+- `month_prompt.js` — the month's prompt (the blog's first piece): the one
+  a journal holds (`settings.month_prompt`, kept and read here), whether it
+  is still open, and `send_to_prompt`, an entry's record and its writing as
+  they stand sent on the keeper's press to the publication's journal
+  (`PUBLICATION_URL`), never written to the entry; and on that journal,
+  `takesPrompts` and `mark_prompt_record`, so its submissions take them.
 - `music_data_api.js` — Apple's catalogue: album art resizing
-  (`sizedAlbumArt`), tracklists and album facts, the record search
-  (`searchAlbums`), the song search (`searchSongs`), genre folding.
+  (`sizedAlbumArt`), a cover's color (`colorOfArt`, for By color, in the
+  browser and on the server alike; `readArtColor`, the browser's reading,
+  shared with the home beacon's wash), tracklists and album facts, the record
+  search (`searchAlbums`), the song search (`searchSongs`), genre folding.
 - `needle.js` — the beacon's reading half: the one `needle` row saying what
   is being logged now, lifting it, `sat_with` for listens whose post was
   deleted, and the recent listens drawn under the beacon.
 - `outbox.js` — a send, a wave or a reply leaving this copy for another,
   server to server: posts to their `/api/submissions`, `/api/waves` or
-  `/api/messages` and reports what came back in plain words.
+  `/api/messages` and reports what came back in plain words; and
+  `ask_directory`, this journal asking the registry to list or delist it,
+  `ask_directory_among`, which of some hashed addresses are on the Board, and
+  `ask_directory_read`, any read of the registry's list, server to server.
 - `people_actions.js` — the address book (`people`): list, file, pin (six at
-  most), remove, and asking a journal its keeper's name.
+  most), keep private, remove, the part that may be published
+  (`pull_public_people`), and asking a journal its keeper's name; and moves —
+  `note_moves`, a friend's journal saying it lives somewhere new, written
+  down by the friends round; `take_move`, the keeper's Update, the only
+  thing that changes the address, which it changes everywhere the journal
+  names it but its entries, in one transaction; `any_moves`. And, since
+  2026-10-27: `seen_records` (`pull_seen_records`, `see_records`, what has
+  scrolled past on the Friends wall, a fortnight at most); and strangers —
+  `arrival_refused`, the doors' rule (one thing at a time from somebody not
+  in the book, none once let go; one unanswered send from a friend),
+  `close_if_stranger` and `open_door` (`closed_doors`).
 - `portrait_code.js` — the press: the portrait made into the journal's QR
   code with a dot of ink per module, proved by decoding with jsQR on both page
   colours; `CODE_BUILD` is bumped whenever the drawing changes.
 - `report_actions.js` — the `reports` table: problems keepers wrote in from
-  their desks, received by the canonical copy.
+  their desks, received by the canonical copy; `takesReports`, whether this
+  journal is that copy, counting the address it moved from.
 - `return_address.js` — a sender's name and journal kept in their own browser
   for the send and message forms; `tidyAddress`, `tidyJournal` and
-  `journalUrl`, the one spelling an address is kept in; and the `?from=` /
-  `?as=` handling when a keeper arrives from their own copy.
+  `journalUrl`, the one spelling an address is kept in; `addressFrom`, what
+  a copy calls itself from the request that reached it; the `?from=` /
+  `?as=` handling when a keeper arrives from their own copy; and
+  `inviterIn`, the inviter an invite link names (`?invite=`, or an old
+  link's `?gift=`).
 - `secrets.js` — the vault: the `secrets` table's only reader. The session
-  secret, password hashing, the claim code, the setup window, and what
-  Settings may be told (set or not, last four characters).
+  secret, password hashing, the claim code, the setup window, what Settings
+  may be told (set or not, last four characters), `directoryCode`, the
+  code the registry issues an address, made from the secret,
+  `seal_claim`, the claim written inside a restore's own transaction, and
+  the spare key — made (`makeSpareKey`), described (`spareKeyState`) and
+  spent by the sign-in it opens (`spendSpareKey`), kept only as a hash.
+- `sent_actions.js` — the `sent` table: a send from this copy written down
+  once it landed, the list of what is still out (a row goes when a
+  `came_back` row names the same record from the same journal, matched as it
+  is read), and removing one.
 - `session_timers.js` — `TrackLength`: seconds to m:ss.
 - `settings_actions.js` — the one `settings` row: read (without the two
   portrait blobs), write through an allow-list with write-once fields,
   `coverName` and `titleName`, `isSetUp` (the gate that fails closed),
-  `pull_keeper_name`.
+  `pull_keeper_name`, and the listing code and whether the journal is on the
+  Board, each read and written on its own (`pull_listing_code`,
+  `save_listing_code`, `pull_findable`, `save_findable`), never with the
+  rest; `pull_moved_to`, where the journal lives now if it moved, read
+  alone for the beacon; and where it lived (`moved_from`, private):
+  `pull_own_addresses`, every address the journal answers to, for the
+  keeper's feed, `livedAt`, and `note_old_address`.
 - `sitewide_visuals.js` — colours and fonts as JS objects, for canvas and
   chart code that cannot read a CSS custom property. The stylesheets are the
   source; this mirrors them.
@@ -239,21 +404,35 @@ pages and API routes are indexed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - `submission_actions.js` — the `submissions` table: saving a send, listing
   sends with the entry each became, counting, the four outcomes, marking one
   logged, naming a sender later.
+- `unpacking.mjs` — putting a journal back, for `scripts/restore.mjs` and
+  `/api/restore` alike: a journal file read (a zip from Make a copy or a
+  bare `journal.json`), the plan (the order the foreign keys give, empty
+  tables that point in emptied with the rest, refusals, what is left alone,
+  a file from before messages) and the one transaction, with a hook for
+  what has to land with it — setup's claim. `.mjs` because the script is
+  plain Node.
 - `updater_link.js` — the link that hands a keeper their updater: GitHub's
   new-file page on their repository with the workflow file already in it, on
   the branch the copy was built from; read by the update route and by
   `/updates/go`, the journal's own redirect that a phone's GitHub app cannot
   swallow.
 - `version.js` — this copy's version from `package.json`, the releases URL,
-  and `REPORTS_URL`.
+  `REPORTS_URL`, `INSTAGRAM_URL`, `DIRECTORY_URL` and `PUBLICATION_URL`, and
+  `SANDBOX`: whether this build is a preview nothing may leave.
 - `wave_actions.js` — the `waves` table: waves that arrived here, one row per
   journal, seen, removed.
 - `whole_journal.mjs` — asks the database which tables it has and reads one
   table as Postgres writes it; shared by backup, export and restore so no list
-  is kept. `.mjs` because the backup is plain Node.
+  is kept; and `copy_begins` / `copy_failed`, the moment a copy was made,
+  written the same way by the backup and the export. `.mjs` because the
+  backup is plain Node.
 - `wristband.js` — the login cookie: signed tokens issued and checked with the
-  session secret, renewal, the route guard `requireWristband`, and
-  `wristbandOnHand` for pages.
+  session secret — a band is one that holds `authed: true` — renewal, the
+  route guard `requireWristband`, and `wristbandOnHand` for pages. In
+  production the cookie is `__Host-ln_session`, locked to the exact address
+  (an old `ln_session` is still read on a one-journal copy and moved), and
+  `fromItsOwnPages` reads a band only off a request from the journal's own
+  pages or the address bar.
 
 ## `hooks/` — reusable browser logic
 
@@ -261,8 +440,14 @@ pages and API routes are indexed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
   place; fetches the credit fields separately because public reads strip them.
 - `useHoldStill.js` — locks every scrolling ancestor behind an open overlay so
   nothing under it moves.
-- `useJournalHost.js` — the journal's host, used as the hidden username so a
-  password manager files the password.
+- `useJournalHost.js` — the journal's host, and `usePasswordName`: the hidden
+  username a password manager files the password under — the keeper's name,
+  the host only where no name is set (since 2026-10-21).
+- `useFriendsBeacons.js` — one shared poll, once a minute while People, the
+  address book or the Board is on screen, of `/api/friends/beacons`: what everyone in
+  the address book is logging, kept through a journal's failure, and `away`,
+  the Board's friends of friends; `refreshFriends` for the pull,
+  `fillFriends` for the whole book.
 - `useListeningBeacon.js` — one shared poll of this journal's own beacon,
   subscribed to by every component that draws it.
 - `useListeningSession.js` — all the state and API calls of a listen in
@@ -277,19 +462,36 @@ pages and API routes are indexed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 ## `scripts/` — run by hand or by a machine, not by the site
 
 - `backup.mjs` — every table to `$BACKUP_DIR/<timestamp>/` with `migrations/`
-  beside it; 30 kept. Carries `secrets`.
+  beside it; 30 kept. Carries `secrets`. Counts as a copy, so a journal
+  backed up nightly is never asked for one.
 - `prepare_database.mjs` — runs before `next build`: migrates and prints the
   claim notice; never fails the build.
-- `restore.mjs` — puts a backup or an export back; a dry run without `--yes`.
+- `restore.mjs` — puts a backup or an export back — a folder, the zip from
+  Make a copy, or a bare `journal.json`; a dry run without `--yes`. The
+  restore itself is `library/unpacking.mjs`.
 - `update_copy.mjs` — what the update workflow does on a keeper's repository:
   graft, merge the latest release, push; fetched from upstream each run.
+- `letterhead.mjs` — the canonical keeper's sender of LN. Admin letters: makes
+  the key and keeps its private half in her Mac's Keychain (`keys`), seals
+  and posts a letter to the journals it concerns (`send`), and seals and
+  pins the month's prompt on them (`prompt`).
+- `hosting_directory.mjs` — the hosting directory by hand until signup
+  places journals: makes the directory's key (`key`) and keeps the
+  directory's way in (`remember`) in the Keychain, places a journal at an
+  address with the way in read off the clipboard (`place`), lists and
+  checks addresses, and moves a journal in at a new address (`move`: its
+  address, its listing on the Board, its card's code; refused without a way
+  back in). Never prints a way in.
 
 ## Top-level files whose names are Next's, not ours
 
 - `instrumentation.js` — the startup hook: migrates before the first request
-  and prints the claim notice while unclaimed.
+  and prints the claim notice while unclaimed; on a deployment that hosts
+  journals, neither (each journal is migrated on its first visit).
 - `proxy.js` — Next's middleware under its new name: copies the pathname into
-  a header for the layout and does nothing else.
+  a header for the layout, and puts the content security policy on every
+  page, with the number this request's scripts are stamped with. No reads,
+  no decisions.
 
 ## Components named by metaphor
 
@@ -297,10 +499,17 @@ The full component list is in docs/ARCHITECTURE.md; these are the names that
 do not say what they hold.
 
 - `Bookplate.js` — context holding the journal's own details (name, keeper,
-  portrait), read once on the server and handed down.
+  portrait), read once on the server and handed down; and `Visiting`, whose
+  journal a friend's post read inside this one is (2026-10-28), for its
+  header and its message way in.
 - `KeeperTools.js` — the owner's ··· menu on an entry or the card.
-- `Friends.js` — the address book as a grid of faces.
-- `Footer.js` — the band at the foot of the phone's cross naming the panes.
+- `Friends.js` — the address book as a grid of faces; drawn nowhere since
+  2026-10-27 (the address book's page draws Friends, PeopleScreen.js), and
+  only its `since` is still imported (Friend_panel.js).
+- `Headlines.js` — what friends did, one sentence at a time, at the top of
+  Friends.
+- `Words.js` — all the words with one friend, record by record.
+- `PinnedLetter.js` — the LN. Admin letter, pinned over the home wall.
 - `EditingBar.js` — the Save and Cancel band at the foot of anything being
   corrected.
 - `MarqueeTitle.js` — a title too long for the small beacon, scrolling one lap.
@@ -316,6 +525,8 @@ do not say what they hold.
 - `.githooks/pre-commit` — the lint gate: git runs it before a commit on a
   machine that has pointed `core.hooksPath` at the folder, and refuses the
   commit on a lint error (Commands).
+- `.githooks/commit-msg` — the authorship gate: refuses a commit made as a
+  tool, naming one in a trailer, or not signed off (Commands).
 - `.agents/skills/neon-postgres/SKILL.md` — a vendor-written guide to Neon for
   coding agents. Not read for this index beyond its header.
 - `migrations/` — numbered SQL, applied in order; each file's header says why

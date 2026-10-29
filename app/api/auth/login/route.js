@@ -14,11 +14,13 @@
 // window and the code are both cleared and stop being answers.
 
 import { NextResponse } from 'next/server';
-import { issueWristband, WRISTBAND_COOKIE } from '@/library/wristband';
+import { issueWristband, WRISTBAND_COOKIE, PROOF_SECONDS } from '@/library/wristband';
 import { mayKnock, forgetKnocks, tooSoon, whoIsKnocking } from '@/library/doorman';
 import { isSetUp } from '@/library/settings_actions';
-import { pull_secrets, verifyPassword, claimCodeMatches, setupWindowOpen } from '@/library/secrets';
+import { pull_secrets, verifyPassword, claimCodeMatches, setupWindowOpen, spendSpareKey } from '@/library/secrets';
 import { timingSafeEqual } from 'node:crypto';
+import { deploymentSetting } from '@/library/hosting_directory';
+import { answerNoJournal } from '@/library/hosting_directory';
 
 // Compares in constant time, so the answer takes as long for a password that
 // is wrong in the first character as for one wrong in the last. A plain !==
@@ -36,7 +38,8 @@ function sameSecret(given, actual) {
 async function opens(password) {
   const { password_hash } = await pull_secrets();
   if (password_hash) return await verifyPassword(password, password_hash);
-  if (process.env.SESSION_PASSWORD) return sameSecret(password, process.env.SESSION_PASSWORD);
+  const fromDeployment = deploymentSetting('SESSION_PASSWORD');
+  if (fromDeployment) return sameSecret(password, fromDeployment);
   // No password of any kind. Only an unclaimed copy is in this state. For
   // half an hour after its build the door is simply open — see the window
   // in library/secrets.js — and after that only the claim code gets
@@ -56,12 +59,20 @@ export async function POST(request) {
     // turns centuries-to-crack into centuries-to-crack; without it a strong
     // password is worth an afternoon.
     const caller = whoIsKnocking(request);
-    const knock = mayKnock('login', caller);
+    const knock = await mayKnock('login', caller);
     if (!knock.allowed) return tooSoon(knock.retryAfter);
 
-    const { password } = await request.json();
+    const { password, spare } = await request.json();
 
-    if (!(await opens(String(password || '')))) {
+    // The spare key, 2026-10-20: the floor, through this same door and
+    // counted by the same doorman. It opens once, and opening spends it
+    // (library/secrets.js).
+    if (spare !== undefined) {
+      if (!(await spendSpareKey(spare))) {
+        await new Promise(r => setTimeout(r, 400));
+        return NextResponse.json({ error: 'That spare key didn’t work.' }, { status: 401 });
+      }
+    } else if (!(await opens(String(password || '')))) {
       // Small delay makes brute-force slow without bothering a real human
       await new Promise(r => setTimeout(r, 400));
       return NextResponse.json({ error: 'Wrong password' }, { status: 401 });
@@ -69,13 +80,17 @@ export async function POST(request) {
 
     // Somebody who mistyped four times and then got it right should not still
     // be counted against on their next device.
-    forgetKnocks('login', caller);
+    await forgetKnocks('login', caller);
 
-    const token = await issueWristband();
-    const response = NextResponse.json({ ok: true });
+    // A sign-in is a proof, and says how long it lasts, for Confirm it's you
+    // (Keyring.js), which asks through this same door.
+    const token = await issueWristband({ proved: true });
+    const response = NextResponse.json({ ok: true, proved_left: PROOF_SECONDS });
     response.cookies.set(WRISTBAND_COOKIE.name, token, WRISTBAND_COOKIE.options);
     return response;
   } catch (error) {
+    const nowhere = answerNoJournal(error);
+    if (nowhere) return nowhere;
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }
 }

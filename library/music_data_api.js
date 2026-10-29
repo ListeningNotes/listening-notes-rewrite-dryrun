@@ -26,6 +26,73 @@ export function sizedAlbumArt(url, size = 600) {
   return `https://is1-ssl.mzstatic.com/image/thumb/${path}/${size}x${size}bb.jpg`;
 }
 
+// ── A cover's color, 2026-10-22 ────────────────────────────────────────────
+// For the wall's By color (Journal.js), which reads each cover in the browser,
+// and for the server's reading of a cover a page may not read
+// (app/api/entries/[slug]/color) — one reading, so the two cannot disagree.
+// Given a cover drawn at COLOR_SIDE pixels square, as RGBA bytes.
+//
+// The hue it has most of, each pixel counted by how vivid it is, the middle
+// of the strongest ten degrees leant toward whichever neighbour is stronger
+// so two covers of one color still line up by shade; and `plain` for a cover
+// with hardly any color at all, which the wall puts after the colored ones,
+// dark to light by `light`.
+export const COLOR_SIDE = 24;
+// How much color a cover has to have, on average across its pixels, to be a
+// color at all. Set against the test copy's covers: thirteen read exactly
+// none, and the line falls between Back to Black and Grey Oceans.
+const COLOR_FLOOR = 0.08;
+
+export function colorOfArt(px) {
+  const bins = new Array(36).fill(0);
+  let vivid = 0;
+  let light = 0;
+  const count = px.length / 4;
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), chroma = max - min;
+    light += (max + min) / 2;
+    if (chroma < 0.1) continue;
+    let hue = max === r ? ((g - b) / chroma) % 6 : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4;
+    hue = (hue * 60 + 360) % 360;
+    bins[Math.floor(hue / 10)] += chroma;
+    vivid += chroma;
+  }
+  light /= count;
+  if (vivid / count < COLOR_FLOOR) return { hue: 0, light, plain: true };
+  let peak = 0;
+  bins.forEach((v, i) => { if (v > bins[peak]) peak = i; });
+  const left = bins[(peak + 35) % 36], right = bins[(peak + 1) % 36];
+  const hue = (peak * 10 + 5 + 5 * ((right - left) / (bins[peak] + left + right)) + 360) % 360;
+  return { hue, light, plain: false };
+}
+
+// Read in the browser: Apple's covers let a page read their pixels, so a
+// cover is drawn at COLOR_SIDE from a 60px copy and read as above. Null for
+// a cover that will not be read (one kept somewhere else, a failed load).
+// The wall's By color reads with this, and so does the home beacon's wash
+// (HomeNav, 2026-10-23), so the two say one color for one cover.
+export function readArtColor(address) {
+  return new Promise(resolve => {
+    if (typeof Image === 'undefined' || !address) { resolve(null); return; }
+    const art = new Image();
+    art.crossOrigin = 'anonymous';
+    art.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = COLOR_SIDE; canvas.height = COLOR_SIDE;
+        const pen = canvas.getContext('2d', { willReadFrequently: true });
+        pen.drawImage(art, 0, 0, COLOR_SIDE, COLOR_SIDE);
+        resolve(colorOfArt(pen.getImageData(0, 0, COLOR_SIDE, COLOR_SIDE).data));
+      } catch {
+        resolve(null);
+      }
+    };
+    art.onerror = () => resolve(null);
+    art.src = sizedAlbumArt(address, 60);
+  });
+}
+
 // Pull the FULL, ordered tracklist from iTunes/Apple Music. Two steps:
 //   1. find the album's collection (scored match, like fetchAlbumArtUrl)
 //   2. look up that exact collection's songs — returns every track in order
@@ -62,7 +129,7 @@ async function findCollectionId(albumName, artistName) {
   const searchRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=25`);
   const searchData = await searchRes.json();
   const results = (searchData.results || []).filter(r => r.wrapperType === 'collection' && r.collectionId);
-  if (!results.length) return null;
+  if (!results.length) return fromTheArtist(albumName, artistName);
 
   const nAlbum = norm(albumName), nArtist = norm(artistName);
   let best = null, bestScore = -Infinity;
@@ -77,7 +144,27 @@ async function findCollectionId(albumName, artistName) {
     if (/\b(deluxe|expanded|special|anniversary)\b/.test(ra)) score -= 3;
     if (score > bestScore) { bestScore = score; best = r; }
   }
-  return best ? best.collectionId : null;
+  // The album's name has to be in the answer for it to be this record.
+  if (best && bestScore >= 20 + 15) return best.collectionId;
+  return (await fromTheArtist(albumName, artistName)) || (best ? best.collectionId : null);
+}
+
+// ── When the search does not know the record, 2026-10-13 ──────────────────
+// Apple's search index leaves some records out while the artist's own list
+// still holds them: "King Krule The OOZ" finds nothing at all, and King
+// Krule's albums include The OOZ. So the artist is found by name, their
+// albums are read, and the one whose title is the album's is taken — only an
+// exact title, since there is no search score here to weigh a near one.
+async function fromTheArtist(albumName, artistName) {
+  if (!artistName) return null;
+  const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&entity=musicArtist&limit=5`);
+  const data = await res.json();
+  const artist = (data.results || []).find(a => norm(a.artistName) === norm(artistName));
+  if (!artist) return null;
+  const look = await fetch(`https://itunes.apple.com/lookup?id=${artist.artistId}&entity=album&limit=200`);
+  const lookData = await look.json();
+  const albums = (lookData.results || []).filter(r => r.wrapperType === 'collection' && norm(r.collectionName) === norm(albumName));
+  return albums[0]?.collectionId || null;
 }
 
 // Step 2: every song under one id, in order, with the record's facts off the
@@ -95,9 +182,9 @@ async function songsOf(id) {
   // one lookup, both halves (Miyel's contents brief, 2026-09-18).
   const album = rows.find(r => r.wrapperType === 'collection') || null;
 
+  songs.sort((a, b) => (a.discNumber || 1) - (b.discNumber || 1) || (a.trackNumber || 0) - (b.trackNumber || 0));
   return {
     tracks: songs
-      .sort((a, b) => (a.discNumber || 1) - (b.discNumber || 1) || (a.trackNumber || 0) - (b.trackNumber || 0))
       .map((s, i) => ({
         number: i + 1,
         title: s.trackName,
@@ -109,6 +196,12 @@ async function songsOf(id) {
     facts: factsFrom(album),
     // The id these songs came from — the one worth keeping.
     collectionId: String(id),
+    // Thirty seconds of each song, and its address on Apple, for the previews
+    // (hooks/useSnippet.js), 2026-10-13. Beside the tracks rather than on
+    // them, so a listen's draft, which keeps `tracks`, never stores a link
+    // Apple may retire.
+    clips: songs.map(s => ({ title: s.trackName, clip: s.previewUrl || '', songUrl: s.trackViewUrl || '' })),
+    recordUrl: album?.collectionViewUrl || '',
   };
 }
 
@@ -270,6 +363,21 @@ function residualTerms(query, artistName) {
   return q.slice(a.length);
 }
 
+// The first words of an artist's name without the rest of it: "tyler flower
+// boy" for Tyler, The Creator. Returns what the query says after them, or
+// null. At least four letters of name, so "a" or "in" never names anybody,
+// and never the whole name, which is residualTerms' answer.
+function partlyNamed(query, artistName) {
+  const noThe = t => (t[0] === 'the' ? t.slice(1) : t);
+  const q = noThe(words(query));
+  const a = noThe(words(artistName));
+  let n = 0;
+  while (n < a.length && n < q.length && q[n] === a[n]) n++;
+  if (n === 0 || n >= a.length || n >= q.length) return null;
+  if (q.slice(0, n).join(' ').length < 4) return null;
+  return q.slice(n);
+}
+
 // How well a title answers the terms still outstanding.
 function titleMatch(terms, albumName, artistName) {
   if (!terms.length) return 0;
@@ -293,6 +401,32 @@ function editionPenalty(name) {
   return NOT_THE_ALBUM.reduce((sum, [re, cost]) => sum + (re.test(name) ? cost : 0), 0);
 }
 
+// ── One song search per query, shared ─────────────────────────────────────
+// The picker asks for records and songs in the same moment (AlbumPicker), and
+// the records read the song search as well now (searchAlbums, below), so the
+// two share one request rather than asking Apple the same question twice.
+// Only the last query is kept: this saves the second ask, it is not a cache.
+let heardLast = null;
+function songsHeard(query) {
+  if (heardLast?.query === query) return heardLast.answer;
+  const answer = fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=50`)
+    .then(res => res.json())
+    .then(data => data.results || []);
+  heardLast = { query, answer };
+  // A failed ask is forgotten, so the next one goes to Apple again.
+  answer.catch(() => { if (heardLast?.answer === answer) heardLast = null; });
+  return answer;
+}
+
+// Does a record answer what was typed: its artist named, all or in part, or
+// its title? The test a record from the song search has to pass to be shown.
+function answersQuery(query, albumName, artistName) {
+  if (residualTerms(query, artistName) !== null) return true;
+  const rest = partlyNamed(query, artistName);
+  if (rest && titleMatch(rest, albumName, artistName) >= 55) return true;
+  return titleMatch(words(query), albumName, artistName) >= 55;
+}
+
 // One row per record, ranked by what was typed.
 //
 // Was artist-only: it searched entity=musicArtist, so typing an album title
@@ -304,11 +438,25 @@ function editionPenalty(name) {
 // Now two searches run together: the artist's full catalogue, and a direct album
 // title search. They're merged, pressings of one record collapse into it, and
 // what's left is ranked rather than sorted by release date.
+//
+// ── And the song search, 2026-10-17 ───────────────────────────────────────
+// Miyel: "when I search for an album by its name, for example Flower Boy, I'm
+// expecting Tyler, the Creator's Flower Boy to pop up, but it doesn't. Only
+// songs from Flower Boy show up." Apple's album search does not have it: two
+// hundred results for "flower boy", strangers' singles every one, and no
+// Tyler. Where it does have the record it has no idea which one is meant —
+// "in rainbows", "rumours", "blonde" and "ok computer" each put four or five
+// strangers' records of that name above the one anybody is looking for,
+// ordered by nothing but how recent they were. The song search is in Apple's
+// order, the most played first, and Tyler's record is its first answer. So it
+// is the third search: a record it turns up that answers what was typed joins
+// the list, and how early and how often it turns up lifts the record — the
+// only sign this code gets of which "Flower Boy" somebody means.
 export async function searchAlbums(searchQuery) {
   const query = searchQuery.trim();
   if (!query) return [];
   try {
-    const [byArtist, byTitle] = await Promise.all([
+    const [byArtist, byTitle, heard] = await Promise.all([
       // The artist's catalogue, when what was typed leads with an artist name.
       // Every returned artist is checked, not just the first: searching
       // "radiohead ok computer" hands back three string quartets and no
@@ -338,14 +486,17 @@ export async function searchAlbums(searchQuery) {
           best = (data.results || []).find(a => residualTerms(query, a.artistName || '') !== null);
           if (best) break;
         }
-        if (!best) return [];
+        if (!best) return { named: '', rows: [] };
         // 200, not 100: a prolific artist's catalogue was being truncated by
         // the API before any of this code got to see it.
         const look = await fetch(`https://itunes.apple.com/lookup?id=${best.artistId}&entity=album&limit=200`);
         const lookData = await look.json();
-        return (lookData.results || [])
-          .filter(r => r.wrapperType === 'collection')
-          .map(r => ({ ...r, artistName: r.artistName || best.artistName }));
+        return {
+          named: best.artistName || '',
+          rows: (lookData.results || [])
+            .filter(r => r.wrapperType === 'collection')
+            .map(r => ({ ...r, artistName: r.artistName || best.artistName })),
+        };
       })(),
       // Albums whose title matches, whoever made them.
       (async () => {
@@ -353,12 +504,67 @@ export async function searchAlbums(searchQuery) {
         const data = await res.json();
         return (data.results || []).filter(r => r.wrapperType === 'collection');
       })(),
+      // Songs, most played first. A failure here costs the ranking, never
+      // the records the other two found.
+      songsHeard(query).catch(() => []),
     ]);
 
-    // One entry per release before pressings are collapsed — the two searches
+    // ── How far up Apple puts each record, and each artist ────────────────
+    // Two orders, both Apple's. The album search's own: where it has the
+    // record it nearly always has it first — Ctrl, In Rainbows, Rumours, Kid
+    // A and Abbey Road each came back at the top of it, and the ranking below
+    // used to throw that order away and sort records of one name by how new
+    // they were. And the song search's, for the records the album search
+    // does not have at all, Flower Boy and IGOR among them: a song is worth
+    // 120 at the head of the list and four less for every song above it, so
+    // nothing past the thirtieth counts, and a record is worth what its songs
+    // there add up to — added up, not the first alone, so the three of Frank
+    // Ocean's that "blonde" brings outweigh the one title track of Alizée's
+    // that comes a place before them. An artist is worth what their songs add
+    // up to, for the question of which the query means (below).
+    const songs = heard.filter(s => s.wrapperType === 'track' && s.kind === 'song' && s.collectionId);
+    const recordPlays = new Map();
+    const artistPlays = new Map();
+    songs.forEach((s, i) => {
+      const worth = Math.max(0, 120 - 4 * i);
+      recordPlays.set(s.collectionId, (recordPlays.get(s.collectionId) || 0) + worth);
+      const who = new Set([norm(s.artistName), norm(s.collectionArtistName)]);
+      for (const key of who) if (key) artistPlays.set(key, (artistPlays.get(key) || 0) + worth);
+    });
+    const albumRank = new Map();
+    byTitle.forEach((r, i) => { if (!albumRank.has(r.collectionId)) albumRank.set(r.collectionId, i); });
+
+    // The records the songs turned up that the other two searches did not —
+    // Flower Boy, for one — asked of Apple by their ids, because a record's
+    // year and its length are the record's own and a song's can differ: a
+    // track put out as a single ahead of its album carries the single's date,
+    // and the year is half of what makes a record itself on the wall
+    // (DECISIONS, A record is its title, its artist and its year). Ten at
+    // most, and only ones that answer what was typed. One more request, and
+    // only when there is something to ask about.
+    const known = new Set([...byArtist.rows, ...byTitle].map(r => r.collectionId));
+    const wanted = [];
+    for (const s of songs) {
+      if (wanted.length >= 10) break;
+      if (known.has(s.collectionId) || wanted.includes(s.collectionId)) continue;
+      if (/^various artists$/i.test(s.collectionArtistName || '')) continue;
+      if (/- single$/i.test(s.collectionName || '')) continue;
+      if (!answersQuery(query, s.collectionName || '', s.collectionArtistName || s.artistName || '')) continue;
+      wanted.push(s.collectionId);
+    }
+    let byEar = [];
+    if (wanted.length) {
+      try {
+        const res = await fetch(`https://itunes.apple.com/lookup?id=${wanted.join(',')}`);
+        const data = await res.json();
+        byEar = (data.results || []).filter(r => r.wrapperType === 'collection');
+      } catch { /* the other two searches still stand */ }
+    }
+
+    // One entry per release before pressings are collapsed — the searches
     // overlap heavily whenever the query names an artist.
     const byId = new Map();
-    for (const r of [...byArtist, ...byTitle]) {
+    for (const r of [...byArtist.rows, ...byTitle, ...byEar]) {
       if (!r.collectionId || !r.artworkUrl100) continue;
       const trackCount = r.trackCount || 0;
       if (trackCount > 0 && trackCount <= 3) continue;
@@ -366,22 +572,46 @@ export async function searchAlbums(searchQuery) {
       if (!byId.has(r.collectionId)) byId.set(r.collectionId, r);
     }
 
-    // Collapse pressings. The row kept is the one that reads as the record
-    // itself: fewest edition markers, and the earliest release among those —
-    // a remaster carries the original's year, so this picks the real issue.
+    // Collapse pressings. A row folds into a record already kept only when
+    // the two are plausibly one record: either name carries an edition marker
+    // (a bracketed qualifier, or one of the words in NOT_THE_ALBUM), or both
+    // came out the same year — a remaster carries the original's year, so a
+    // plainly titled reissue still folds in. Two plainly titled rows from
+    // different years are two records and both stay, 2026-10-13: an artist
+    // put out two records with one title, and the second never reached the
+    // list because the first had already taken its key, so a friend could
+    // send only one of them. The row kept for a record is the one that reads
+    // as the record itself: fewest edition markers, and the earliest release
+    // among those.
+    const yearOf = r => parseInt((r.releaseDate || '').slice(0, 4), 10) || null;
+    const marked = name => editionPenalty(name) > 0 || albumKey(name) !== norm(name).replace(/\s+/g, '');
+    const onePressing = (a, b) => {
+      if (marked(a.collectionName || '') || marked(b.collectionName || '')) return true;
+      const ya = yearOf(a), yb = yearOf(b);
+      return !ya || !yb || ya === yb;
+    };
+    // A record is as far up as the highest of its pressings, and played as
+    // much as all of them together: the songs people play are often on the
+    // deluxe one, and the row kept is the plain one.
     const groups = new Map();
     for (const r of byId.values()) {
       const key = `${norm(r.artistName)}|${albumKey(r.collectionName)}`;
-      const current = groups.get(key);
-      if (!current) { groups.set(key, r); continue; }
+      const kept = groups.get(key) || [];
+      const at = kept.findIndex(k => onePressing(k.row, r));
+      const rank = albumRank.get(r.collectionId) ?? Infinity;
+      const plays = recordPlays.get(r.collectionId) || 0;
+      if (at === -1) { kept.push({ row: r, rank, plays }); groups.set(key, kept); continue; }
+      const slot = kept[at];
+      slot.rank = Math.min(slot.rank, rank);
+      slot.plays += plays;
       const mine = editionPenalty(r.collectionName || '');
-      const theirs = editionPenalty(current.collectionName || '');
-      const myYear = parseInt((r.releaseDate || '').slice(0, 4), 10) || 9999;
-      const theirYear = parseInt((current.releaseDate || '').slice(0, 4), 10) || 9999;
-      if (mine < theirs || (mine === theirs && myYear < theirYear)) groups.set(key, r);
+      const theirs = editionPenalty(slot.row.collectionName || '');
+      const myYear = yearOf(r) || 9999;
+      const theirYear = yearOf(slot.row) || 9999;
+      if (mine < theirs || (mine === theirs && myYear < theirYear)) slot.row = r;
     }
 
-    const albums = [...groups.values()].map(r => {
+    const albums = [...groups.values()].flat().map(({ row: r, rank, plays }) => {
       const name = r.collectionName || '';
       const artist = r.artistName || '';
       // Asked per row rather than once for the whole search: does this row's
@@ -390,8 +620,14 @@ export async function searchAlbums(searchQuery) {
       // ties and edition and year decide the order.
       const rest = residualTerms(query, artist);
       const theirs = rest !== null;
+      // Or only the start of the artist's name does, and the rest of the
+      // query is the title: "tyler flower boy" found nothing at all, because
+      // it names no artist whole and no record has all three words in it.
+      const after = theirs ? null : partlyNamed(query, artist);
+      const partTitle = after ? titleMatch(after, name, artist) : 0;
+      const partly = partTitle >= 55;
       const terms = theirs ? rest : words(query);
-      const title = titleMatch(terms, name, artist);
+      const title = partly ? partTitle : titleMatch(terms, name, artist);
       return {
         name,
         artist,
@@ -405,24 +641,58 @@ export async function searchAlbums(searchQuery) {
         art: r.artworkUrl100.replace(/\d+x\d+bb/, '600x600bb'),
         artLarge: r.artworkUrl100.replace(/\d+x\d+bb/, '3000x3000bb'),
         _theirs: theirs,
+        _partly: partly,
         _title: title,
+        // Its songs, and its place in the album search: 100 at the top of
+        // it and ten less a place, so the first ten count. Under a song at
+        // the head of the list, because "igor" puts a stranger's Igor first
+        // among albums and Tyler's first among songs, and Tyler's is meant.
+        _plays: plays,
+        _loved: plays + (Number.isFinite(rank) ? Math.max(0, 100 - 10 * rank) : 0),
         // The artist's name and nothing else: a discography, which reads by
         // date alone (below). And the whole date, not the year, so two
         // records from one year still fall in the order they came out.
         _bare: theirs && rest.length === 0,
         _date: r.releaseDate || '',
-        // 200 clears the highest a title can score (140), so once the query has
-        // named an artist nobody else's record can outrank their own — which is
-        // what put a covers album called Radiohead above Radiohead.
-        _score: (theirs ? 200 : 0) + title - editionPenalty(name),
+        _penalty: editionPenalty(name),
       };
     });
+
+    // ── An artist, or a record by that name? ──────────────────────────────
+    // The artist search answers first and its head start is worth more than
+    // any title, which is right for "radiohead ok computer" and wrong when
+    // the words are somebody's band as well as somebody else's record: "in
+    // rainbows" is a band whose EP stood over Radiohead, "igor" an artist whose
+    // own "Igor" stood over Tyler's. The songs say which is meant. If a record
+    // that answers the query by its title is played more among them than the
+    // artist the query named, the artist's head start goes. Weighed, not
+    // first-come: a band called Nirvana keeps its name against one stranger's
+    // song called Nirvana at the top, because the rest of the page is theirs.
+    // With no songs to go on, nothing changes.
+    const namedPlays = byArtist.named ? (artistPlays.get(norm(byArtist.named)) || 0) : 0;
+    const titlePlays = Math.max(0, ...albums
+      .filter(a => !a._theirs && (a._partly || a._title >= 55))
+      .map(a => a._plays));
+    const headStart = titlePlays > namedPlays ? 0 : 200;
+    for (const a of albums) {
+      // 200 clears the highest a title can score (140), so once the query has
+      // named an artist nobody else's record can outrank their own — which is
+      // what put a covers album called Radiohead above Radiohead. Half the
+      // name earns less than the whole of it.
+      const head = a._theirs ? headStart : a._partly ? 150 : 0;
+      // How far up Apple puts it (above), counted to 120: a record people
+      // play stands over a stranger's of the same name. Never as much as a
+      // title answering outright (140), so among the records of an artist the
+      // query named, the one it named comes first — "beyonce lemonade" put two
+      // of her better-played records over Lemonade while this went higher.
+      a._score = head + a._title + Math.min(120, a._loved) - a._penalty;
+    }
 
     // Nothing typed matches — usually the title search dragging in a stranger's
     // compilation. Someone else's record has to answer the title outright to
     // stand alongside the named artist's own, which is what keeps tribute and
     // covers albums off the top of "radiohead ok computer".
-    const matched = albums.filter(a => a._theirs || a._title >= 55);
+    const matched = albums.filter(a => a._theirs || a._partly || a._title >= 55);
 
     // Newest first, always, 2026-09-03. A bare artist name is a discography,
     // and for a while it read forwards — the argument being that the early
@@ -434,10 +704,14 @@ export async function searchAlbums(searchQuery) {
     // A discography is the date and nothing else, 2026-09-26. The edition
     // penalty was still ordering it, so a live record sank below the first
     // album it followed; Miyel: "albums should be newest to oldest."
-    matched.sort((a, b) => (a._bare && b._bare ? 0 : b._score - a._score) || b._date.localeCompare(a._date));
+    //
+    // Two records level after all that — both at the most being heard can
+    // add — go by how far up Apple put them before the count stopped, and
+    // only then by date.
+    matched.sort((a, b) => (a._bare && b._bare ? 0 : (b._score - a._score) || (b._loved - a._loved)) || b._date.localeCompare(a._date));
     // Sixty, which on a phone is seven pages of nine — enough to hold a long
     // discography without the old cliff at twenty.
-    return matched.slice(0, 60).map(({ _score, _theirs, _title, _bare, _date, ...album }) => album);
+    return matched.slice(0, 60).map(({ _score, _theirs, _partly, _title, _plays, _loved, _bare, _date, _penalty, ...album }) => album);
   } catch { return []; }
 }
 
@@ -467,11 +741,10 @@ export async function searchSongs(searchQuery) {
   const query = searchQuery.trim();
   if (!query) return [];
   try {
-    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=50`);
-    const data = await res.json();
+    const results = await songsHeard(query);
     const seen = new Set();
     const songs = [];
-    for (const r of data.results || []) {
+    for (const r of results) {
       if (r.wrapperType !== 'track' || r.kind !== 'song') continue;
       if (!r.trackName || !r.collectionName || !r.artworkUrl100) continue;
       if (/^various artists$/i.test(r.collectionArtistName || '')) continue;

@@ -49,7 +49,7 @@ export async function pull_submissions() {
   return await database`
     SELECT s.id, s.album, s.artist, s.year, s.note, s.submitter_name,
            s.album_art, s.collection_id, s.sender_url, s.status, s.created_at,
-           s.quiet, s.sender_entry, s.song,
+           s.quiet, s.sender_entry, s.song, s.seen_at,
            s.entry_id, e.slug AS entry_slug, e.album AS entry_album,
            e.posted_at AS entry_posted_at
     FROM submissions s
@@ -59,6 +59,15 @@ export async function pull_submissions() {
 }
 
 // The desk wants a number, not the rows.
+// Whether a record waits that has not been opened yet — the inbox's own dot
+// on a cover, gathered onto its door (app/api/waiting, 2026-10-20).
+export async function any_unseen_sends() {
+  const [row] = await database`
+    SELECT EXISTS (SELECT 1 FROM submissions WHERE status = 'pending' AND seen_at IS NULL) AS any
+  `;
+  return row?.any === true;
+}
+
 export async function count_pending_submissions() {
   const [row] = await database`
     SELECT COUNT(*)::int AS n FROM submissions WHERE status = 'pending'
@@ -66,11 +75,20 @@ export async function count_pending_submissions() {
   return row?.n ?? 0;
 }
 
+// Opened in the inbox, 2026-10-17: the moment its dot goes out. Only the
+// first time — when it was first seen is the fact (migrations/035).
+export async function see_submission(id) {
+  const [row] = await database`
+    UPDATE submissions SET seen_at = now() WHERE id = ${id} AND seen_at IS NULL RETURNING id, seen_at
+  `;
+  return row || null;
+}
+
 export async function update_submission_status(id, status) {
   const result = await database`
     UPDATE submissions SET status = ${status}
     WHERE id = ${id}
-    RETURNING id, status
+    RETURNING id, status, sender_url, submitter_name
   `;
   return result[0] || null;
 }

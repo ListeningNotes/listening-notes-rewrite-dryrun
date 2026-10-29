@@ -12,11 +12,19 @@ import { Nunito, DM_Mono } from 'next/font/google';
 import { Lightswitch } from '../components/main_components/Lightswitch';
 import { Bookplate } from '../components/main_components/Bookplate';
 import ComingSoon from '../components/main_components/ComingSoon';
-import { PATH_HEADER } from '../proxy';
+import { PATH_HEADER, NONCE_HEADER } from '../proxy';
 import { headers } from 'next/headers';
 import { isSetUp, pull_settings, coverName, titleName } from '../library/settings_actions';
 import { hasDatabase, explainDatabaseError } from '../library/database_connection';
+import { journalHere, NoJournalHere, hostHere, isHere } from '../library/hosting_directory';
+import { isFrontDoor, hostedDomain, placesLeft, ticketAtTheDoor, openDoor, frontDoorMetadata, frontDoorCovers } from '../library/front_door';
+import FrontDoor from '../components/main_components/FrontDoor';
 import { isCurrentCode } from '../library/portrait_code';
+import { takesReports } from '../library/report_actions';
+import { SANDBOX } from '../library/version';
+import { wristbandOnHand } from '../library/wristband';
+import { journalUrl } from '../library/return_address';
+import { redirect } from 'next/navigation';
 
 // 300 was added here for an hour, for prompt answers set light. They are set
 // the way an album title is now — display weight — so nothing reads 300 and it
@@ -54,6 +62,18 @@ const dmMono = DM_Mono({
 // name a copy shows is the name its owner typed, not the name it was built
 // with.
 export async function generateMetadata() {
+  // The front door is the software's own page, not a journal, so it is the
+  // one place called Listening Notes and nothing else — and an invite link's
+  // preview says who invited them (library/front_door.js).
+  if (isFrontDoor(await hostHere())) return await frontDoorMetadata();
+  // An address with no journal is the software's page too, saying so, and
+  // no page to keep: every name under the domain answers, so a search engine
+  // is told not to file it (2026-10-21).
+  try {
+    await journalHere();
+  } catch (error) {
+    if (error instanceof NoJournalHere) return { title: 'Listening Notes', robots: { index: false, follow: false } };
+  }
   const settings = await pull_settings();
   // titleName, not coverName. Everything in this function is read by a machine
   // — a browser tab, a home-screen label, a link preview on somebody else's
@@ -203,10 +223,50 @@ const SETUP_PATH = '/setup';
 // and for a fresh copy with a mistyped string is a dead end with nobody to
 // ask. A page that says the database cannot be reached is true in both cases
 // and points the owner at the one thing to check.
+//
+// 'nobody', 2026-10-20: on a deployment that hosts journals, an address the
+// hosting directory does not know. Nobody's journal is drawn there — not a
+// default, not the nearest (library/hosting_directory.js) — and /setup is
+// held too, because there is nothing at the address to set up.
+//
+// 'front-door', 2026-10-20: the address a deployment that hosts journals
+// answers at itself, which has no journal of its own and draws the front
+// door's pages instead (library/front_door.js).
+// Where the front door's Start a journal is, from an address with no journal
+// at it: the deployment's own domain, by the scheme and port this request
+// came in on (a dev server's port, https behind Vercel). Empty where there is
+// no front door.
+async function frontDoorHome() {
+  const domain = hostedDomain();
+  if (!domain) return '';
+  const asked = await headers();
+  const raw = (asked.get('x-forwarded-host') || asked.get('host') || '').split(',')[0].trim();
+  const port = raw.match(/:\d+$/)?.[0] || '';
+  const scheme = (asked.get('x-forwarded-proto') || '').split(',')[0].trim() || (port ? 'http' : 'https');
+  return `${scheme}://${domain}${port}/get`;
+}
+
 async function holdTheDoor() {
   const path = (await headers()).get(PATH_HEADER) || '';
   if (path.startsWith('/api/')) return null;
   if (!hasDatabase()) return 'database';
+  if (isFrontDoor(await hostHere())) {
+    return {
+      reason: 'front-door', path, left: await placesLeft().catch(() => 0),
+      // The ticket an invite link brought, and whether the door is open to
+      // anybody without one (2026-10-22, library/front_door.js).
+      ticket: await ticketAtTheDoor().catch(() => null),
+      open: openDoor(),
+      // The covers on its record wall (2026-10-22).
+      covers: await frontDoorCovers().catch(() => []),
+    };
+  }
+  try {
+    await journalHere();
+  } catch (error) {
+    if (error instanceof NoJournalHere) return { reason: 'nobody', home: await frontDoorHome() };
+    return { reason: 'unreachable', said: explainDatabaseError(error) };
+  }
   if (path === SETUP_PATH) return null;
   try {
     return (await isSetUp()) ? null : 'setup';
@@ -217,7 +277,26 @@ async function holdTheDoor() {
 
 export default async function RootLayout({ children, layer }) {
   const holding = await holdTheDoor();
-  const all = await pull_settings();
+  // The front door draws no journal, so it reads none — not the studio's,
+  // which answers one door at the same address (library/hosting_directory.js,
+  // studio).
+  const all = holding?.reason === 'front-door' ? {} : await pull_settings();
+
+  // ── This journal moved, 2026-10-21 ───────────────────────────────────────
+  // A visitor is sent on to where it lives now, at the same page (Settings,
+  // This journal moved). Its keeper, signed in, still sees it here — to undo
+  // the move, or to make a copy before closing it — and nobody is sent off the
+  // doors back in: the lock, Settings and setup. Never to the address it was
+  // asked at (isHere): that is a circle.
+  if (!holding && all?.moved_to && !(await isHere(all.moved_to))) {
+    const path = (await headers()).get(PATH_HEADER) || '/';
+    const stays = ['/login', '/settings', '/setup'].some(door => path === door || path.startsWith(`${door}/`));
+    const there = journalUrl(all.moved_to);
+    if (!stays && there && !(await wristbandOnHand())) redirect(`${there}${path}`);
+  }
+  // The number this request's scripts are stamped with (proxy.js), for the
+  // one script the layout writes itself.
+  const nonce = (await headers()).get(NONCE_HEADER) || undefined;
 
   // Named keys only, rather than spreading what is left after removing the
   // essay. Bookplate is a client component, so every prop handed to it is
@@ -236,6 +315,10 @@ export default async function RootLayout({ children, layer }) {
   // because the build number lives in the press, which is server-only, and
   // the card, which acts on the answer, is not.
   settings.portrait_code_stale = Boolean(all.portrait_code_url) && !isCurrentCode(all.portrait_code_url);
+  // Whether problem reports land here, for the inbox. Decided on the server,
+  // because the address a journal moved from is known only to the server
+  // (library/report_actions.js).
+  settings.takes_reports = takesReports(all.site_address);
   // has_note used to ride along here — a boolean saying an essay existed, so
   // the about page could decide whether to draw a link to it without carrying
   // 3.5KB of prose into every page on the site. Nothing links to the essay any
@@ -280,7 +363,16 @@ export default async function RootLayout({ children, layer }) {
             the content passes under. Nothing on a desk, where the inset is
             zero and the band has no height. */}
         <div className="ln-brow" aria-hidden="true" />
+        {/* A preview built as a sandbox (library/version.js) glows violet
+            round the edge of the screen and says SANDBOX in the corner, on
+            every page and wherever it is scrolled, so it is never taken for
+            the journal it was copied from. The word was Miyel's pick of
+            three on 2026-10-17; the glow her ask once she had seen it,
+            2026-10-19. */}
+        {SANDBOX && <div className="ln-sandbox-glow" aria-hidden="true" />}
+        {SANDBOX && <div className="ln-sandbox">Sandbox</div>}
         <script
+          nonce={nonce}
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `try{var s=localStorage.getItem('ln-theme');if(s)document.documentElement.setAttribute('data-theme',s);}catch(e){}`,
@@ -288,8 +380,10 @@ export default async function RootLayout({ children, layer }) {
         />
         <Bookplate settings={settings}>
           <Lightswitch>
-            {holding
-              ? <ComingSoon reason={typeof holding === 'string' ? holding : holding.reason} said={holding.said} />
+            {holding?.reason === 'front-door'
+              ? <FrontDoor path={holding.path} domain={hostedDomain()} left={holding.left} ticket={holding.ticket} open={holding.open} covers={holding.covers} />
+              : holding
+              ? <ComingSoon reason={typeof holding === 'string' ? holding : holding.reason} said={holding.said} home={holding.home} />
               : <>
               {children}
               {layer}

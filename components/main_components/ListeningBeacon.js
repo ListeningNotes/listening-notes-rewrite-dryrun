@@ -42,27 +42,28 @@ import { CAPTION, useListeningBeacon } from '../../hooks/useListeningBeacon';
 // now and belongs entirely to HomeNav — this component draws a record and
 // nothing else.
 //
-// `choosing` stands the whole record down: while one is being picked the
-// beacon is not reporting anything, it is a target waiting for a cover to
-// land in it (Miyel's beacon brief, 2026-09-17). The art stays on screen,
-// shrunk and dimmed by the pane — the page never goes blank, and the small
-// cover is the thing the picked record flies into.
-//
-// It said CHOOSING A RECORD under the cover for an hour and Miyel took it
-// off: the picker underneath, the shrunken cover and the × in the corner are
-// already three things saying it, and a fourth in small caps was a label on a
-// state nobody could be in by accident.
-//
-// It is passed in rather than worked out here because what the pane is doing
-// is the pane's business.
+// `choosing` stood the whole record down while one was picked on the beacon
+// itself (2026-09-17); it went with that picker on 2026-10-21, when the
+// session became a sheet raised from the Listen bar.
 // `emptied` takes the picture out of the slot and leaves the slot. It is the
 // middle of the drop: the cover has left the beacon and is on its way down
 // into the journal, and for those few hundred milliseconds the beacon is
 // holding a space rather than showing a record (Miyel's beacon brief, item
 // 4). Everything else stays where it is, so nothing on the screen moves while
 // one thing falls across it.
-export default function ListeningBeacon({ choosing = false, emptied = false }) {
-  const { state, album, artist, art, track, isLive } = useListeningBeacon();
+export default function ListeningBeacon({ emptied = false }) {
+  const beacon = useListeningBeacon();
+  return <BeaconCard beacon={beacon} emptied={emptied} />;
+}
+
+// ── Somebody else's, 2026-10-26 ───────────────────────────────────────────
+// A friend's journal page draws their beacon with this (Miyel's Friends
+// brief: "my components, their rows"), handed the row their
+// /api/public/beacon answers in place of this journal's own. The same
+// record, the same grey and the same caption; nothing of theirs carries a
+// listen in progress, so `rated` is simply absent.
+export function BeaconCard({ beacon, emptied = false }) {
+  const { state, album, artist, art, track, isLive, rated } = beacon;
   // A song wherever there is one — including after a listen has been shut,
   // which keeps the track that was open up rather than dropping back to the
   // record's name. A whole record is what is left when the last thing logged
@@ -74,6 +75,19 @@ export default function ListeningBeacon({ choosing = false, emptied = false }) {
   // placeholder is drawn instead until the record changes.
   const [failed, setFailed] = useState('');
   const artUrl = art && art !== failed ? art : '';
+
+  // ── The bars rise and fall, 2026-10-23 ─────────────────────────────────
+  // Never appearing or vanishing (Miyel: "I never like when something just
+  // appears or disappears. Those horizon bars should rise or fall"). So the
+  // floor keeps its places once a listen has said how many there are, and a
+  // listen that ends lowers its bars to nothing in those same places rather
+  // than taking them away; a bar arriving grows up from the cover's edge
+  // (nav.css, beacon-bar-rise).
+  const live = isLive && !emptied;
+  const [places, setPlaces] = useState(0);
+  if (live && rated?.length && rated.length !== places) setPlaces(rated.length);
+  const count = live && rated?.length ? rated.length : places;
+  const anyRated = live && Boolean(rated?.some(r => r > 0));
 
   // Nothing at all: a copy on its first afternoon, before a record has been
   // picked up — or a journal whose keeper has switched the beacon off, which
@@ -88,7 +102,7 @@ export default function ListeningBeacon({ choosing = false, emptied = false }) {
   if (!title) {
     return (
       <div className="beacon-stage beacon-stage--quiet">
-        {!choosing && <p className="beacon-quiet">Nothing logged yet.</p>}
+        <p className="beacon-quiet">Nothing logged yet.</p>
       </div>
     );
   }
@@ -104,18 +118,9 @@ export default function ListeningBeacon({ choosing = false, emptied = false }) {
             somewhere else anyway. See the note above LANDING_MS in
             HomeNav.js. */}
         <div className={'beacon-art-wrap' + (isLive ? ' beacon-art-wrap--live' : '')}>
-          {/* Empty while a record is being chosen, 2026-09-18. The slot went on
-              showing the last record the whole time the picker was open, so a
-              new cover flew out of the list and landed on top of a different
-              one — which is most of what Miyel meant by "the pass from
-              selecting an album to the session screen is still strange,
-              disjointed… start a fresh listen should maybe show a blank tile
-              when selecting. Not the beacon but the selection."
-              It is the beacon's own empty state, the same one the drop leaves
-              behind: a slot with nothing in it is a place for something to
-              arrive, and a slot with last week's record in it is a picture
-              being covered up. */}
-          {emptied || choosing
+          {/* The beacon's own empty state while the drop is under way: a slot
+              with nothing in it is a place for something to arrive. */}
+          {emptied
             ? <div className="beacon-art-empty" aria-hidden="true" />
             : artUrl
               ? <img src={artUrl} alt={title} className={'beacon-art' + (!isLive ? ' beacon-art--idle' : '')} onError={() => setFailed(artUrl)} />
@@ -125,8 +130,33 @@ export default function ListeningBeacon({ choosing = false, emptied = false }) {
               this would be writing on an empty square, and over lit art it
               would be a scrim across the one cover on this site that is
               meant to be in full colour. */}
-          {!choosing && !emptied && !isLive && artUrl && (
+          {!emptied && !isLive && artUrl && (
             <div className="beacon-idle-overlay"><span>{CAPTION[state]}</span></div>
+          )}
+          {/* ── The cover wears its listen, 2026-10-23 ───────────────────
+              While a listen is open, a bar on the cover's foot for each
+              track rated, as tall as its rating, in the record's own order
+              and place: every track has a slot across the cover's width and
+              one not yet rated draws nothing, so a five-track record fills
+              it once it is done (Miyel's beacon brief, and her pick of the
+              mockups: "the horizon drawn directly onto the cover"). No
+              colour on the newest — the cover in colour already says it is
+              live. A shade at the foot of the art only, so white bars read on
+              a pale cover. Not HorizonChart, the entry's labelled chart:
+              this carries no labels, hearts or titles.
+
+              Retired the same day, her call: nothing sends the ratings, so
+              nothing is drawn here until it is turned back on (DECISIONS,
+              the bars on the beacon's cover). */}
+          {!emptied && artUrl && count > 0 && (
+            <div className={'beacon-foot' + (anyRated ? ' beacon-foot--up' : '')} aria-hidden="true">
+              <div className="beacon-floor">
+                {Array.from({ length: count }, (_, i) => {
+                  const r = live ? Number(rated?.[i]) || 0 : 0;
+                  return <i key={i} style={{ height: `${(r / 5) * 100}%` }} />;
+                })}
+              </div>
+            </div>
           )}
         </div>
         <div className="beacon-meta">

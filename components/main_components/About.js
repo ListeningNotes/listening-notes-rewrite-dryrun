@@ -52,7 +52,8 @@ import {
 import { useIdentificationCardEditor } from './IdentificationCardEditor';
 import EditingBar from './EditingBar';
 import WritingAccess from './WritingAccess';
-import { useBookplate } from './Bookplate';
+import { KeeperFoot } from './Keyring';
+import { useBookplate, useVisiting } from './Bookplate';
 import { BIO_PROMPTS, readBioAnswers } from '../../library/bioprompt';
 import { VERSION, RELEASE_URL, SOURCE_URL } from '../../library/version';
 
@@ -96,6 +97,12 @@ const PIN_RESULTS = 40;
 // should be solved together.
 export default function About({ stamps, authed = false, pinned = null, entries = [], onSignedIn = null }) {
   const settings = useBookplate();
+  // ── Somebody else's card, 2026-10-29 ────────────────────────────────────
+  // A friend's card opened from their face on their page here (app/dashboard/
+  // people/[id]): their records open as their posts inside this journal, and
+  // the foot carries their version rather than this copy's, with no lock.
+  const visiting = useVisiting();
+  const entryAt = slug => (visiting ? `${visiting.page}/${encodeURIComponent(slug)}` : `/entries/${slug}`);
   const { bioanswers, keeper_name, rig: rigRows, social_links } = settings;
 
   // Whose voice the answers are in, and what the journal actually listens to.
@@ -247,13 +254,19 @@ export default function About({ stamps, authed = false, pinned = null, entries =
     else setCountDrag(0);
   }
 
-  // What is in the open window. The same two tests the wall filters on
-  // (Journal.js), so the window and the archive's filter can never disagree
-  // about what counts; masterpiece was a rating before it was a column, which
-  // is why the first one asks twice.
+  // What is in the open window: the rows the card counted, so the number in
+  // the header is the number on the card. Both flags are counted on album
+  // listens only (/api/public/stamps, `song IS NULL`): a track note marked
+  // Formative, which it can be since 2026-09-30, is in the Songs total and
+  // nowhere else on the card (DECISIONS, A track note is its own entry).
+  // The window had no such test until 2026-10-06, so a journal with three
+  // formative records and one formative song said 3 on the card and 4 here.
+  // The wall's filter reads a record's listens the same way (Journal.js),
+  // so the three cannot disagree about what counts. Masterpiece was a
+  // rating before it was a column, which is why the first test asks twice.
   const inWindow = useMemo(() => {
     if (!openCount) return [];
-    return entries.filter(e => (openCount === 'masterpieces'
+    return entries.filter(e => !e.song && (openCount === 'masterpieces'
       ? (e.masterpiece === true || e.rating === 'Masterpiece')
       : (e.formative === true || e.formative === 'true')));
   }, [openCount, entries]);
@@ -342,18 +355,21 @@ export default function About({ stamps, authed = false, pinned = null, entries =
     ? (entries.find(e => e.id === edit.pin) || null)
     : pinned;
 
-  // The search. Album and artist only: this is somebody looking for a record
-  // they already have in mind, not browsing, and matching notes as well would
-  // put an album in the results for a sentence written about a different one.
-  // Records only, 2026-09-24: the pin is the one record the card points at,
-  // and a track note is a song — it has its own address, not a place here.
+  // The search. Song, album and artist only: this is somebody looking for a
+  // record, or a song, they already have in mind, not browsing, and matching
+  // notes as well would put an album in the results for a sentence written
+  // about a different one.
+  // Records and songs, 2026-10-01. The track notes were left out on
+  // 2026-09-24 — the pin was the one record the card points at, and a song
+  // had its own address, not a place here — and came in with Miyel's brief: a
+  // song can be the thing somebody is pointing at as readily as a record
+  // (DECISIONS, Structure; the argument it replaced is in the archive).
   const pinResults = useMemo(() => {
     const q = pinQuery.trim().toLowerCase();
-    const records = entries.filter(e => !e.song);
     const rows = q
-      ? records.filter(e =>
-          `${e.album || ''} ${e.artist || ''}`.toLowerCase().includes(q))
-      : records;
+      ? entries.filter(e =>
+          `${e.song || ''} ${e.album || ''} ${e.artist || ''}`.toLowerCase().includes(q))
+      : entries;
     return rows.slice(0, PIN_RESULTS);
   }, [entries, pinQuery]);
 
@@ -557,8 +573,8 @@ export default function About({ stamps, authed = false, pinned = null, entries =
               <div className="ab-count-grid">
                 {inWindow.map(row => (
                   <Link
-                    key={row.id}
-                    href={`/entries/${row.slug}`}
+                    key={row.id ?? row.slug}
+                    href={entryAt(row.slug)}
                     className="ab-count-cover"
                     title={`${row.album} — ${row.artist}`}
                     aria-label={`${row.album} — ${row.artist}`}
@@ -591,15 +607,15 @@ export default function About({ stamps, authed = false, pinned = null, entries =
       {pinSheetOpen && (
         <>
           <div className="ab-pin-scrim" onClick={() => setPinOpen(false)} />
-          <div className="ab-pin-sheet" ref={sheetRef} role="dialog" aria-label="Choose a pinned album">
+          <div className="ab-pin-sheet" ref={sheetRef} role="dialog" aria-label="Choose a pinned album or song">
             <div className="ab-pin-search">
               <MagnifyingGlass size={14} weight="bold" aria-hidden="true" />
               <input
                 className="ab-pin-field"
                 value={pinQuery}
                 onChange={e => setPinQuery(e.target.value)}
-                placeholder="Search your albums"
-                aria-label="Search your albums"
+                placeholder="Search your albums and songs"
+                aria-label="Search your albums and songs"
               />
             </div>
 
@@ -625,20 +641,28 @@ export default function About({ stamps, authed = false, pinned = null, entries =
                   className={'ab-pin-one' + (row.id === edit.pin ? ' ab-pin-one--on' : '')}
                   onClick={() => choosePin(row.id)}
                   aria-pressed={row.id === edit.pin}
-                  aria-label={`${row.album} — ${row.artist}`}
-                  title={`${row.album} — ${row.artist}`}
+                  aria-label={row.song ? `${row.song} — ${row.album} \u00b7 ${row.artist}` : `${row.album} — ${row.artist}`}
+                  title={row.song ? `${row.song} — ${row.album} \u00b7 ${row.artist}` : `${row.album} — ${row.artist}`}
                 >
-                  <span className="ab-pin-one-art">
+                  {/* A song is a page, its corner folded over in the album's
+                      colour, the way it is on the wall and in the feed
+                      (2026-10-01), and the one line under it is the song. */}
+                  <span className={'ab-pin-one-art' + (row.song ? ' ln-fold' : '')}>
                     {row.album_art
                       ? <img src={row.album_art} alt="" />
                       : <span aria-hidden="true">♪</span>}
+                    {row.song && (
+                      <span className="ln-fold-flap" aria-hidden="true">
+                        {row.album_art && <img src={row.album_art} alt="" />}
+                      </span>
+                    )}
                     {row.id === edit.pin && (
                       <span className="ab-pin-one-tick" aria-hidden="true">
                         <Check size={12} weight="bold" />
                       </span>
                     )}
                   </span>
-                  <span className="ab-pin-one-album">{row.album}</span>
+                  <span className="ab-pin-one-album">{row.song || row.album}</span>
                 </button>
               ))}
               {pinResults.length === 0 && (
@@ -715,7 +739,7 @@ export default function About({ stamps, authed = false, pinned = null, entries =
                     className={'ab-prompt-pick' + (open ? ' ab-prompt-pick--on' : '')}
                     onClick={() => setPicking(open ? null : index)}
                     aria-expanded={open}
-                    aria-label={`Opening ${index + 1}`}
+                    aria-label={`Prompt ${index + 1}`}
                   >
                     <span className={chosen ? 'ab-prompt-ask' : 'ab-prompt-none'}>
                       {chosen ? noDash(chosen.text) : 'Choose a prompt'}
@@ -723,32 +747,37 @@ export default function About({ stamps, authed = false, pinned = null, entries =
                     <CaretDown size={11} weight="bold" aria-hidden="true" />
                   </button>
 
-                  {open && (
-                    <div className="ab-prompt-menu" role="group" aria-label="Openings">
-                      {BIO_PROMPTS.map(prompt => {
-                        const on = prompt.key === row.key;
-                        // Openings already used in another slot stay on the
-                        // list. Picking one swaps the two rather than refusing,
-                        // so nothing has to be cleared to make a move somebody
-                        // has already decided on — but it is marked, because a
-                        // swap you did not expect reads as a bug.
-                        const elsewhere = !on && edit.bio.some((r, i) => i !== index && r.key === prompt.key);
-                        return (
-                          <button
-                            key={prompt.key}
-                            type="button"
-                            className={'ab-prompt-opt' + (on ? ' ab-prompt-opt--on' : '') + (elsewhere ? ' ab-prompt-opt--taken' : '')}
-                            onClick={() => { edit.setBioKey(index, prompt.key); setPicking(null); }}
-                            aria-pressed={on}
-                          >
-                            <span>{noDash(prompt.text)}</span>
-                            {on && <Check size={12} weight="bold" aria-hidden="true" />}
-                            {elsewhere && <span className="ab-prompt-taken" aria-hidden="true">in use</span>}
-                          </button>
-                        );
-                      })}
+                  {/* Folded open and shut rather than appearing (Miyel, 2026-10-20:
+                      "more like a smooth animation than just appearing"), as in
+                      setup: drawn always, eased open, out of reach while shut. */}
+                  <div className={'ab-prompt-fold' + (open ? ' ab-prompt-fold--open' : '')} inert={!open}>
+                    <div className="ab-prompt-fold-in">
+                      <div className="ab-prompt-menu" role="group" aria-label="Prompts">
+                        {BIO_PROMPTS.map(prompt => {
+                          const on = prompt.key === row.key;
+                          // Openings already used in another slot stay on the
+                          // list. Picking one swaps the two rather than refusing,
+                          // so nothing has to be cleared to make a move somebody
+                          // has already decided on — but it is marked, because a
+                          // swap you did not expect reads as a bug.
+                          const elsewhere = !on && edit.bio.some((r, i) => i !== index && r.key === prompt.key);
+                          return (
+                            <button
+                              key={prompt.key}
+                              type="button"
+                              className={'ab-prompt-opt' + (on ? ' ab-prompt-opt--on' : '') + (elsewhere ? ' ab-prompt-opt--taken' : '')}
+                              onClick={() => { edit.setBioKey(index, prompt.key); setPicking(null); }}
+                              aria-pressed={on}
+                            >
+                              <span>{noDash(prompt.text)}</span>
+                              {on && <Check size={12} weight="bold" aria-hidden="true" />}
+                              {elsewhere && <span className="ab-prompt-taken" aria-hidden="true">in use</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  )}
+                  </div>
 
                   {/* A textarea, not an input, and only because of how it
                       grows: the answer prints as a wrapped line and it should
@@ -1057,6 +1086,12 @@ export default function About({ stamps, authed = false, pinned = null, entries =
           this copy is running. */}
       {authed && (
         <section className="ab-keep" aria-label="This copy">
+          {/* Use Face ID next time? — once, for a keeper already signed in on
+              a device that could, who would otherwise not see the lock for
+              months — and then the spare key, when there is none or it has
+              been used (Miyel, 2026-10-20). One question a visit; nothing
+              drawn when there is nothing to ask. */}
+          <KeeperFoot />
           {/* The one line about the software rather than the journal: which
               version this is, and — only when it is true — that there is a
               newer one. No Source: §13 is owed to visitors and this is the
@@ -1090,16 +1125,20 @@ export default function About({ stamps, authed = false, pinned = null, entries =
           keeper's half above. The version beside it says at a glance which copy
           a friend is running. The lock is the keeper's way in on their own
           phone; a visitor sees a lock and nothing happens (WritingAccess.js). */}
-      {!authed && (
+      {/* A friend's card read here carries their version, not this copy's
+          (Miyel, 2026-10-29: "having it at the foot of their card, what
+          version they're running, is good") — and no lock, which would be
+          this journal's. A journal too old to say its version has no foot. */}
+      {!authed && (!visiting || visiting.version) && (
         <section className="ab-keep ab-keep--visitor" aria-label="This software">
-          <WritingAccess onSignedIn={onSignedIn} />
+          {!visiting && <WritingAccess onSignedIn={onSignedIn} />}
           <p className="db-colophon">
             <a className="pt-source" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
               Source
             </a>
             <span className="pt-colophon-dot" aria-hidden="true">&middot;</span>
             <a className="pt-source" href={RELEASE_URL} target="_blank" rel="noopener noreferrer" title="What this version contains">
-              {VERSION}
+              {visiting ? visiting.version : VERSION}
             </a>
           </p>
         </section>

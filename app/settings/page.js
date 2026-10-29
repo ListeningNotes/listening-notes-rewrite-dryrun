@@ -25,9 +25,9 @@
 // "not here" was the page apologising for it.
 //
 // ── Secrets go in and never come back out ─────────────────────────────────
-// The keys and the password are written through /api/secrets and the page is
-// only ever told whether one is set and its last four characters. A key that
-// has been typed is replaced by typing another, or cleared; it is not shown.
+// The password is written through /api/secrets, from Your keys (Keyring.js),
+// and the page is only ever told whether one is set and where it comes from.
+// A secret that has been typed is replaced by typing another; it is not shown.
 //
 // ── One Save per section ──────────────────────────────────────────────────
 // Rather than one at the foot of the page, so that "that did not save" can
@@ -43,9 +43,9 @@ import PasswordGate from '../../components/session_components/PasswordGate';
 import AddToHomeScreen from '../../components/main_components/AddToHomeScreen';
 import UpdateSwitch from '../../components/main_components/UpdateSwitch';
 import JournalCopy from '../../components/main_components/JournalCopy';
-import { useJournalHost } from '../../hooks/useJournalHost';
-
-const PASSWORD_FLOOR = 8;
+import Keyring from '../../components/main_components/Keyring';
+import { DIRECTORY_URL } from '../../library/version';
+import { tidyJournal } from '../../library/return_address';
 
 async function send(url, body) {
   const res = await fetch(url, {
@@ -91,6 +91,73 @@ function Section({ title, note, onSave, children, saveLabel = 'Save' }) {
   );
 }
 
+// ── On the Board, 2026-10-08 ───────────────────────────────────────────────
+// Being on the Board is the default for everyone (Miyel's Board brief), and
+// this is the one switch that takes a journal off — off every board,
+// friends' included. What it means is said before the switch, not after.
+// The switch moves only once the registry has answered, so it never says
+// on while the journal is off, and the line under it says what happened
+// when it could not.
+const BOARD_AT = tidyJournal(DIRECTORY_URL).replace(/^www\./, '');
+
+function OnTheBoard() {
+  const [on, setOn] = useState(null);   // null until asked
+  const [busy, setBusy] = useState(false);
+  const [trouble, setTrouble] = useState('');
+
+  useEffect(() => {
+    fetch('/api/listing')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setOn(d ? Boolean(d.findable) : null))
+      .catch(() => setOn(null));
+  }, []);
+
+  async function flip(next) {
+    setBusy(true);
+    setTrouble('');
+    try {
+      const res = await fetch('/api/listing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listed: next }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (typeof d.findable === 'boolean') setOn(d.findable);
+      if (!res.ok || d.error) throw new Error(d.error || 'That did not work. Nothing changed.');
+    } catch (e) {
+      setTrouble(e.message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <p className="st-note">
+        Your name, your face and what you&rsquo;re playing are on the board at {BOARD_AT}{' '}&mdash; the same
+        things your journal already shows anyone who visits. Your entries stay where they are. Off takes you
+        off every board, your friends&rsquo; included.
+      </p>
+      <label className="st-switch">
+        <span>On the board</span>
+        <input
+          type="checkbox"
+          role="switch"
+          className="ln-switch"
+          checked={Boolean(on)}
+          disabled={busy || on === null}
+          onChange={e => flip(e.target.checked)}
+        />
+      </label>
+      {(busy || trouble) && (
+        <div className="st-foot">
+          {busy && <span className="st-said" role="status">{on ? 'Taking you off\u2026' : 'Putting you on\u2026'}</span>}
+          {trouble && <span className="st-trouble" role="alert">{trouble}</span>}
+        </div>
+      )}
+    </>
+  );
+}
+
 // What a stored secret looks like on this page: a line saying it is set and
 // where from, and a field to replace it.
 function secretLine(status) {
@@ -100,25 +167,24 @@ function secretLine(status) {
 }
 
 export default function SettingsPage({ layered = false }) {
-  const host = useJournalHost();
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [settings, setSettings] = useState(null);
-  const [secrets, setSecrets] = useState(null);
+  // A journal on a deployment that hosts many (app/api/settings): its address
+  // is the hosting directory's and its updates come with each release.
+  const [hosted, setHosted] = useState(false);
 
   const [address, setAddress] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  // Where the journal lives now, if it moved (2026-10-21).
+  const [movedTo, setMovedTo] = useState('');
 
   const load = useCallback(async () => {
-    const [s, k] = await Promise.all([
-      fetch('/api/settings').then(r => r.json()),
-      fetch('/api/secrets').then(r => r.json()),
-    ]);
+    const s = await fetch('/api/settings').then(r => r.json());
     const row = s.settings || {};
     setSettings(row);
-    setSecrets(k);
+    setHosted(s.hosted === true);
     setAddress(row.site_address || '');
+    setMovedTo(row.moved_to || '');
   }, []);
 
   useEffect(() => {
@@ -130,6 +196,56 @@ export default function SettingsPage({ layered = false }) {
       })
       .catch(() => setChecking(false));
   }, [load]);
+
+  // Opened at #back-up, 2026-10-20 — the door on the letter a journal writes
+  // when it wants a copy of itself (library/letterhead.js) — Settings starts
+  // at Back up your journal rather than at its top. The section is drawn only
+  // once the sign-in check has answered, too late for the browser's own jump
+  // to an anchor, and over the journal Settings is a sheet with a scroller of
+  // its own: so the nearest scroller is moved, and nothing under it. What is
+  // above the section is still arriving — Your keys reads its rows on its
+  // own — and would push it out of view, so it is put back as that settles,
+  // until the keeper scrolls or a couple of seconds have passed.
+  useEffect(() => {
+    if (!authed || window.location.hash !== '#back-up') return undefined;
+    const section = document.getElementById('back-up');
+    if (!section) return undefined;
+    // The nearest box that really scrolls: one that may and has more than it
+    // shows. Not the style alone — a box clipped sideways reads as scrolling
+    // up and down too, and moving it moves nothing.
+    const scrollerOf = () => {
+      for (let box = section.parentElement; box && box !== document.body; box = box.parentElement) {
+        if (/^(auto|scroll)$/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight + 1) return box;
+      }
+      return null;
+    };
+    const scroller = scrollerOf();
+    // Clear of the bar over the page, with the section's heading in view.
+    const above = 96;
+    const place = () => {
+      const off = section.getBoundingClientRect().top - (scroller ? scroller.getBoundingClientRect().top : 0) - above;
+      if (scroller) scroller.scrollTop += off;
+      else window.scrollTo({ top: window.scrollY + off });
+    };
+    place();
+    // As the page grows, and on a few beats besides, for a page the browser
+    // is not drawing — a home-screen app waking — where the first never
+    // fires.
+    const settling = new ResizeObserver(place);
+    settling.observe(section.parentElement);
+    const beats = [300, 800, 1500].map(ms => setTimeout(place, ms));
+    const target = scroller || window;
+    const stop = () => {
+      settling.disconnect();
+      beats.forEach(clearTimeout);
+      target.removeEventListener('wheel', stop);
+      target.removeEventListener('touchstart', stop);
+    };
+    target.addEventListener('wheel', stop, { passive: true });
+    target.addEventListener('touchstart', stop, { passive: true });
+    const enough = setTimeout(stop, 2000);
+    return () => { clearTimeout(enough); stop(); };
+  }, [authed]);
 
   if (checking) return <div style={{ minHeight: '100dvh', background: 'var(--bg)' }} />;
   // Signed out, this page *is* the sign-in: the three taps on the mark and
@@ -147,19 +263,36 @@ export default function SettingsPage({ layered = false }) {
           <p className="st-kicker">The machinery behind your journal.</p>
         </header>
 
-        <Section
-          title="This journal’s address"
-          note="Where your card’s code points. Change it if you move the journal to a domain of your own."
-          onSave={async () => {
-            await send('/api/settings', { site_address: address });
-            // The code on the card encodes the address, so it is pressed
-            // again once the new one is on the row. Quietly: what happened
-            // is in the server's log, not on this form.
-            await fetch('/api/portrait/code', { method: 'POST' }).catch(() => {});
-          }}
-        >
-          <input className="st-field" value={address} onChange={e => setAddress(e.target.value)} placeholder="yourname.example.com" inputMode="url" autoCapitalize="none" autoComplete="off" />
-        </Section>
+        {/* Not on a hosted journal (2026-10-20): its address is the hosting
+            directory's, and moving to a domain of its own is a step of its
+            own (hosted journals, step 7). */}
+        {!hosted && (
+          <Section
+            title="This journal’s address"
+            note="Where your card’s code points. Change it if you move the journal to a domain of your own."
+            onSave={async () => {
+              await send('/api/settings', { site_address: address });
+              // The code on the card encodes the address, so it is pressed
+              // again once the new one is on the row. Quietly: what happened
+              // is in the server's log, not on this form.
+              await fetch('/api/portrait/code', { method: 'POST' }).catch(() => {});
+            }}
+          >
+            <input className="st-field" value={address} onChange={e => setAddress(e.target.value)} placeholder="yourname.example.com" inputMode="url" autoCapitalize="none" autoComplete="off" />
+          </Section>
+        )}
+
+        {/* The Board, after the address it lists. The switch was here on
+            2026-10-07 as "Be findable", went to the head of the list that
+            evening, and came back on 2026-10-08 as the way off a Board
+            everybody is on by default (Miyel's Board brief: "put the switch
+            in Settings"). Not drawn on a copy with no directory. */}
+        {DIRECTORY_URL && (
+          <div className="st-section">
+            <h2 className="st-h">The board</h2>
+            <OnTheBoard />
+          </div>
+        )}
 
         {/* "Your beacon" was here from 2026-09-16 to 2026-09-24: Now logging
             or Quiet. Every journal broadcasts now (Miyel), and a copy that
@@ -177,45 +310,56 @@ export default function SettingsPage({ layered = false }) {
             is what a retirement is — the plumbing stays, nothing is connected
             to it. */}
 
-        <Section
-          title="Password"
-          note="The one you sign in with. At least eight characters."
-          saveLabel="Change password"
-          onSave={async () => {
-            if (password.length < PASSWORD_FLOOR) throw new Error(`At least ${PASSWORD_FLOOR} characters.`);
-            if (password !== confirm) throw new Error('The two passwords do not match.');
-            setSecrets(await send('/api/secrets', { password }));
-            setPassword(''); setConfirm('');
-          }}
-        >
-          {/* The address the password is filed under — a real, visible,
-              writable input, because that is what a password manager will
-              pair the password with. Typing into it changes nothing. */}
-          <input className="st-field st-who" type="text" name="username" autoComplete="username" value={host} onChange={() => {}} aria-label="Journal" tabIndex={-1} />
-          {/* Placeholders where labels were, the way setup asks. */}
-          <input className="st-field" type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="New password" aria-label="New password" />
-          <input className="st-field" type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Re-type password" aria-label="Re-type password" />
-        </Section>
+        {/* Your keys, 2026-10-20: every way into this journal in one place —
+            the passkeys and Add this device, then the password and the spare
+            key, each a row with its word at the end
+            (components/main_components/Keyring.js). The password was a
+            section of its own under it until it was folded in the same day. */}
+        <div className="st-section">
+          <h2 className="st-h">Your keys</h2>
+          <Keyring />
+        </div>
 
         {/* The export, which nothing led to until 2026-09-23. Two presses —
             make a copy, then hand it over — and JournalCopy says why. */}
-        <div className="st-section">
+        <div className="st-section" id="back-up">
           <h2 className="st-h">Back up your journal</h2>
           <JournalCopy />
         </div>
 
         {/* Here as well as in setup, for anyone who skipped it there, and
             for a copy whose updater was switched off or never arrived. It
-            says so itself when it is already on. */}
-        <div className="st-section">
-          <h2 className="st-h">Automatic updates</h2>
-          <UpdateSwitch explain />
-        </div>
+            says so itself when it is already on. Not on a hosted journal
+            (2026-10-20), which is updated with every release and has no
+            repository of its own to run an updater on. */}
+        {!hosted && (
+          <div className="st-section">
+            <h2 className="st-h">Automatic updates</h2>
+            <UpdateSwitch explain />
+          </div>
+        )}
 
         <div className="st-section">
           <h2 className="st-h">On your home screen</h2>
           <AddToHomeScreen explain />
         </div>
+
+        {/* This journal moved, 2026-10-21 (Miyel's words for the title): for a
+            journal that now lives at another address — a copy moved onto
+            the hosted site, or a hosted journal moved out. Its beacon says
+            where it went, so friends' journals offer their keepers the new
+            address, and visitors are sent on (app/layout.js); its keeper,
+            signed in, still sees it, and an empty field undoes it. */}
+        <Section
+          title="This journal moved"
+          note="If your journal lives at a new address now, put it here. Visitors are sent there, and your friends’ journals offer to update their address books. Leave it empty if it hasn’t moved."
+          onSave={async () => {
+            const d = await send('/api/settings', { moved_to: movedTo });
+            setMovedTo(d?.settings?.moved_to || '');
+          }}
+        >
+          <input className="st-field" value={movedTo} onChange={e => setMovedTo(e.target.value)} placeholder="new address" inputMode="url" autoCapitalize="none" autoComplete="off" />
+        </Section>
 
         {/* The only way out. The route has existed since the wristband did
             and nothing ever called it, so signing out meant clearing cookies.

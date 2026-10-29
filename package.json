@@ -1,6 +1,6 @@
 {
   "name": "listening-notes",
-  "version": "1.40.0",
+  "version": "1.42.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,11 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "backup": "node scripts/backup.mjs",
-    "restore": "node scripts/restore.mjs"
+    "restore": "node scripts/restore.mjs",
+    "letterhead": "node scripts/letterhead.mjs",
+    "hosting-directory": "node --no-warnings scripts/hosting_directory.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
     "@phosphor-icons/react": "^2.1.10",
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.0.3",
     "jose": "^6.2.2",
     "jsqr": "^1.4.0",
     "next": "^16.2.3",

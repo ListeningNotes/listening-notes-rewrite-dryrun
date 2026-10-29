@@ -58,21 +58,34 @@
 // (it is the one field that can fail on its own terms). The name and the
 // password wait for the last screen, because they are what the claim is made
 // of, and the claim is the one write that has to be all or nothing.
+//
+// ── Or a journal is brought, 2026-10-08 ───────────────────────────────────
+// The first screen asks which: Start a new journal, or Bring your journal
+// from the copy made in Settings. Bringing one writes nothing until the
+// password either — the file is read and said back here, in the browser,
+// and the journal and the claim go in one request (app/api/restore).
 
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CaretDown, Check, Eye, EyeSlash, Gift, User } from '@phosphor-icons/react';
+import { CaretDown, Check, Eye, EyeSlash, Ticket, User } from '@phosphor-icons/react';
+import { startRegistration } from '@simplewebauthn/browser';
 import { fonts } from '../../library/sitewide_visuals';
 import { BIO_PROMPTS, BIO_LIMIT } from '../../library/bioprompt';
 import PasswordGate from '../../components/session_components/PasswordGate';
 import { shrink } from '../../components/main_components/IdentificationCardEditor';
 import AddToHomeScreen from '../../components/main_components/AddToHomeScreen';
 import UpdateSwitch from '../../components/main_components/UpdateSwitch';
-import CodeScanner from '../../components/main_components/CodeScanner';
-import { useJournalHost } from '../../hooks/useJournalHost';
-import { tidyJournal, journalUrl } from '../../library/return_address';
+import { usePasswordName } from '../../hooks/useJournalHost';
+import { tidyJournal, journalUrl, inviterIn } from '../../library/return_address';
+import { journal_in } from '../../library/carbon_copy';
+import { DIRECTORY_URL } from '../../library/version';
+
+// Being listed where other keepers can find a journal, said at setup (AGENTS,
+// No phone-home) in Miyel's words, 2026-10-22: on by default, off in Settings.
+const LISTED_SAID = 'Other keepers can find your journal. You can turn this off in Settings.';
+import { canHoldKeys, keepFresh, markKeyHere, thisDevice, wayIn, SpareKeyShown } from '../../components/main_components/Keyring';
 
 // The password claims the journal; the home screen comes after, because it is
 // the one step the software cannot perform and the moment right after the
@@ -98,7 +111,29 @@ import { tidyJournal, journalUrl } from '../../library/return_address';
 // to another site, and before the password the journal is not claimed — the
 // name, openings and rig are still unwritten, so leaving costs them. After
 // it, leaving costs nothing.
-const STEPS = ['name', 'photo', 'prompts', 'rig', 'password', 'updates', 'gift', 'homescreen'];
+//
+// ── Face ID first, 2026-10-20 ─────────────────────────────────────────────
+// The password screen offers Face ID first, with *or choose a password*
+// under it (Miyel's pick, as the lock offers Unlock before the password),
+// wherever the device can make a key; elsewhere it is the password, as it
+// was. Claimed with a key there is no password at all, so a spare key is
+// made next and shown once — only then (her pick): with a password, the
+// foot of the card asks for one later. Bringing a journal is the same.
+const STEPS = ['name', 'photo', 'prompts', 'rig', 'password', 'spare', 'updates', 'gift', 'homescreen'];
+// ── Bring your journal, 2026-10-08 ────────────────────────────────────────
+// The other way through, chosen on the first screen: Start a new journal, or
+// Bring your journal (Miyel's words) — Start from scratch, or Import an
+// existing journal, since 2026-10-20 (hers too). Bringing one is the copy from Settings
+// → Back up your journal — chosen, read here, and said back as whose journal
+// and how much is in it before anything is written, so a wrong file is
+// caught while it costs nothing — then the password, which claims the copy
+// with the journal in it (app/api/restore), then the same housekeeping. No
+// name, photo, prompts or rig: the card comes with the journal. No gift
+// screen either: whoever gave this journal is in the address book it brought.
+const BRING_STEPS = ['bring', 'password', 'spare', 'updates', 'homescreen'];
+// What a rehearsal shows for the spare key: nothing is made on a journal
+// that only walks through setup.
+const SAMPLE_SPARE = 'K7QM-3XRT-9PWD-H2NV';
 const PASSWORD_FLOOR = 8;
 
 async function patchSettings(fields) {
@@ -112,18 +147,45 @@ async function patchSettings(fields) {
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const host = useJournalHost();
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
   // Whether a password already exists — from the environment, on a copy
   // locked the old way — which decides what the gate asks for and whether
   // the password screen may be skipped.
+  // A journal started at the front door (app/api/setup): no updater screen.
+  const [hosted, setHosted] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
+  // Which way through: nothing until the first screen is answered, then
+  // 'new' (the name, the photo and the rest) or 'bring'. `step` counts within
+  // the way chosen.
+  const [path, setPath] = useState(null);
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Let go, 2026-10-22: a journal nobody finished setting up is cleared after
+  // an hour and its address freed (library/front_door.js). Somebody who comes
+  // back to this page after that finds every press failing, so the first
+  // failure asks whether the journal is here at all — the public beacon says
+  // 404 at an address with no journal — and if it is not, the page says the
+  // setup timed out and sends them back to start again (Miyel: "give a
+  // message about the set up timing out and to restart").
+  const [letGo, setLetGo] = useState(false);
+  useEffect(() => {
+    if (!error || !hosted) return undefined;
+    let stale = false;
+    fetch('/api/public/beacon', { cache: 'no-store' })
+      .then(r => { if (!stale && r.status === 404) setLetGo(true); })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [error, hosted]);
+  // The journal being brought, once a file has been read: its name, the
+  // journal itself, and the line that says whose it is and how much is in it.
+  const [copy, setCopy] = useState(null);
 
   const [name, setName] = useState('');
+  // What the password is filed under: the name being set, or the one a
+  // brought journal carries (hooks/useJournalHost.js).
+  const filedUnder = usePasswordName(path === 'bring' ? copy?.keeper : name);
   const [portrait, setPortrait] = useState('');
   const [bio, setBio] = useState(() => Array.from({ length: BIO_LIMIT }, () => ({ key: '', answer: '' })));
   // Which slot has its list of openings open, if any. One at a time — the
@@ -136,6 +198,21 @@ export default function WelcomeScreen() {
   // Whether the password is shown as typed. One switch for both fields: the
   // confirm follows the first, so a typo can be seen in either.
   const [peeking, setPeeking] = useState(false);
+  // The key's half of the password screen: how this device unlocks, where it
+  // can make a key at all; the options to make one with, fetched before the
+  // press for Safari; the keys made here, which the claim names; and how the
+  // journal was claimed, which decides whether the spare key screen comes.
+  const [faceWay, setFaceWay] = useState(null);
+  // Whether this device has been asked if it can use Face ID: until it has
+  // answered, the password screen draws neither way, so the password never
+  // shows first only to be replaced (Miyel, 2026-10-20: "Touch ID should be
+  // the default and then password comes next").
+  const [wayKnown, setWayKnown] = useState(false);
+  const [typingPassword, setTypingPassword] = useState(false);
+  const [makeOptions, setMakeOptions] = useState(null);
+  const [madeKeys, setMadeKeys] = useState([]);
+  const [claimedWith, setClaimedWith] = useState(null);
+  const [spareCode, setSpareCode] = useState('');
 
   // ── Rehearsal ─────────────────────────────────────────────────────────────
   // /setup?rehearse shows the screens on a copy that is already claimed, for
@@ -159,8 +236,6 @@ export default function WelcomeScreen() {
   // brief, handed out, 2026-09-28: "the setup finishes anyway and says so
   // plainly").
   const [helloTrouble, setHelloTrouble] = useState('');
-  const [scanningGift, setScanningGift] = useState(false);
-  const [giftTrouble, setGiftTrouble] = useState('');
 
   // The code, if the person arrived by the link in the build log. Tried
   // once, silently, before anything is drawn: if it opens the door the first
@@ -172,7 +247,11 @@ export default function WelcomeScreen() {
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const rehearse = query.has('rehearse');
-    const code = (query.get('code') || '').trim();
+    // Or after #, 2026-10-20, the way the front door hands a new journal
+    // over (app/api/front-door): the part of a link no server is sent, so
+    // the code is never in a log.
+    const handed = new URLSearchParams(window.location.hash.slice(1));
+    const code = (query.get('code') || handed.get('code') || '').trim();
     Promise.all([
       fetch('/api/auth/check').then(r => r.json()).catch(() => ({})),
       fetch('/api/setup').then(r => r.json()).catch(() => ({ claimed: true })),
@@ -182,10 +261,14 @@ export default function WelcomeScreen() {
       // Unless the owner asked to see it again.
       if (status?.claimed && !(rehearse && auth.authed)) { router.replace('/'); return; }
       setRehearsing(Boolean(status?.claimed && rehearse));
-      // The giver the deploy carried — or, rehearsing, one named in the
-      // address, so the gift screen can be looked at on a claimed copy.
-      setGiftFrom(status?.gift || (rehearse ? tidyJournal(query.get('gift') || '') : ''));
+      // Who invited them: the giver a self-hosted deploy carried, or the
+      // inviter the front door named in the link that brought them here
+      // (Invite, 2026-10-21) — which is also how a rehearsal shows the
+      // screen on a claimed copy.
+      const invited = inviterIn(query);
+      setGiftFrom(status?.gift || invited);
       setHasPassword(Boolean(status?.has_password));
+      setHosted(status?.hosted === true);
       let admitted = !!auth.authed;
       const knock = async password => {
         const res = await fetch('/api/auth/login', {
@@ -206,16 +289,34 @@ export default function WelcomeScreen() {
         admitted = await knock(code);
         if (!admitted) setCodeFromLink(code);
         // The code comes off the address either way. It is a one-time secret
-        // and should not sit in the history or get pasted on somewhere.
-        window.history.replaceState(null, '', '/setup');
+        // and should not sit in the history or get pasted on somewhere. Who
+        // invited them stays, for a reload, and the ticket that made the
+        // journal, for Start again if the setup times out (2026-10-22).
+        const stays = new URLSearchParams();
+        if (invited) stays.set('invite', invited);
+        const ticket = new URLSearchParams(window.location.search).get('ticket');
+        if (ticket) stays.set('ticket', ticket);
+        const kept = stays.toString();
+        window.history.replaceState(null, '', `/setup${kept ? `?${kept}` : ''}`);
+      }
+      // Who gave it is told only to a journal's own wristband, so asked again
+      // once the door has opened: the gift screen is a step only for a
+      // journal that was a gift (Miyel, 2026-10-20).
+      if (admitted && !status?.gift) {
+        const told = await fetch('/api/setup').then(r => r.json()).catch(() => ({}));
+        if (told?.gift) setGiftFrom(told.gift);
       }
       setAuthed(admitted);
       setChecking(false);
     });
   }, [router]);
 
-  const current = STEPS[step];
-  const last = step === STEPS.length - 1;
+  const steps = (path === 'bring' ? BRING_STEPS : STEPS)
+    .filter(s => s !== 'spare' || claimedWith === 'key')
+    .filter(s => s !== 'updates' || !hosted)
+    .filter(s => s !== 'gift' || Boolean(giftFrom));
+  const current = path ? steps[step] : 'start';
+  const last = Boolean(path) && step === steps.length - 1;
   // Which of the three openings the prompts screen is showing. One at a
   // time on one screen, rather than three screens: separate screens lost
   // the thread — you could not tell a new question from a new step, or how
@@ -227,15 +328,108 @@ export default function WelcomeScreen() {
   // The journal is claimed on the password screen; the screens after it only
   // go forward. Once claimed, Back is no longer offered — there is nothing
   // behind it that could still be changed here.
-  const claimed = current === 'updates' || current === 'gift' || current === 'homescreen';
+  const claimed = current === 'spare' || current === 'updates' || current === 'gift' || current === 'homescreen';
+
+  // ── Face ID, on the password screen ──────────────────────────────────────
+  // Offered where this device can make a key and has Face ID or its like.
+  // The options come with the setup's own wristband, and again every four
+  // minutes while the page is on screen, because the challenge in them lasts
+  // five.
+  useEffect(() => {
+    if (current !== 'password') return undefined;
+    let gone = false;
+    let stop = null;
+    const known = () => { if (!gone) setWayKnown(true); };
+    // A device slow to answer gets the password after three seconds.
+    const late = setTimeout(known, 3000);
+    (async () => {
+      await Promise.resolve();
+      if (!canHoldKeys()) { known(); return; }
+      let able = false;
+      try { able = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); } catch { /* no */ }
+      if (!able || gone) { known(); return; }
+      const ask = async () => {
+        try {
+          const r = await fetch('/api/keyring', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+          const d = await r.json().catch(() => ({}));
+          if (!gone && d.options) setMakeOptions(d.options);
+        } catch { /* the password stays */ }
+      };
+      await ask();
+      if (gone) return;
+      setFaceWay(wayIn());
+      known();
+      stop = keepFresh(ask);
+    })();
+    return () => { gone = true; clearTimeout(late); stop?.(); };
+  }, [current]);
+
+  // Claimed with Face ID: the key made here, then the claim naming it. A
+  // rehearsal makes nothing and walks on.
+  async function claimWithFace() {
+    if (busy) return;
+    setError('');
+    if (rehearsing) { setClaimedWith('key'); await advance(); return; }
+    if (!makeOptions) { setError('Face ID isn’t ready yet. Try again in a moment.'); return; }
+    let response;
+    try {
+      response = await startRegistration({ optionsJSON: makeOptions });
+    } catch (e) {
+      // Told no is not a fault; anything else is said.
+      if (e?.name !== 'NotAllowedError' && e?.name !== 'AbortError') setError(`${faceWay?.word || 'Face ID'} didn’t finish. Try again, or choose a password.`);
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch('/api/keyring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response, device: thisDevice() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'The key could not be made. Try again, or choose a password.');
+    } catch (e) {
+      setBusy(false);
+      setError(e.message);
+      return;
+    }
+    setBusy(false);
+    markKeyHere(true);
+    const keys = [...madeKeys, response.id];
+    setMadeKeys(keys);
+    setClaimedWith('key');
+    await advance(path === 'bring' ? () => bring(keys) : () => claim(keys));
+  }
+
+  // ── The spare key, made once the journal is claimed with a key ─────────
+  async function makeSpareNow() {
+    setError('');
+    if (rehearsing) { setSpareCode(SAMPLE_SPARE); return; }
+    try {
+      const r = await fetch('/api/keyring', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spare: true }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.code) throw new Error(d.error || 'Your spare key couldn’t be made just now.');
+      setSpareCode(d.code);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  useEffect(() => {
+    if (current !== 'spare' || spareCode) return;
+    // Asked once on arriving; a failure leaves a Try again.
+    Promise.resolve().then(makeSpareNow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
 
   // ── Finding the giver, on the gift screen ─────────────────────────────────
   // Asked here and not when the page loads: on a real install the first
   // question goes out before the door is opened, and only a request carrying
   // this journal's wristband is told who gave it. By the gift screen the
   // journal is claimed and the question can be asked. A giver whose journal
-  // does not say its name is not shown — never a card with an address on it —
-  // and the screen falls back to asking.
+  // does not say its name is not shown — never a card with an address on it.
+  // Since 2026-10-20 the screen is only ever a gift's (Miyel: "only pop up
+  // ... if you get it through Gift"), so a giver who cannot be named is passed
+  // by, and the next screen says so once, as a failed hello does.
   useEffect(() => {
     if (current !== 'gift' || giver) return undefined;
     let gone = false;
@@ -245,11 +439,19 @@ export default function WelcomeScreen() {
         const status = await fetch('/api/setup').then(r => r.json()).catch(() => ({}));
         from = status?.gift || '';
       }
-      if (!from || gone) return;
-      const answer = await fetch(`/api/setup?giver=${encodeURIComponent(from)}`).then(r => r.json()).catch(() => ({}));
-      if (!gone && answer?.giver?.name) setGiver(answer.giver);
+      const answer = from
+        ? await fetch(`/api/setup?giver=${encodeURIComponent(from)}`).then(r => r.json()).catch(() => ({}))
+        : {};
+      if (gone) return;
+      if (answer?.giver?.name) {
+        setGiver(answer.giver);
+        return;
+      }
+      setHelloTrouble('Whoever invited you couldn’t be reached just now. You can add them later from your book.');
+      advance();
     })();
     return () => { gone = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, giftFrom, giver]);
 
   // Move on, after doing whatever this screen's Next does. Skip calls it with
@@ -277,15 +479,77 @@ export default function WelcomeScreen() {
   }
 
   // ── The claim ─────────────────────────────────────────────────────────────
-  async function claim() {
-    const chosen = password;
+  // With a password, or — `keys` given — with the key just made and no
+  // password. Either way the claim names the keys this setup made, and the
+  // ring keeps only those (app/api/setup).
+  async function claim(keys = null) {
     const res = await fetch('/api/setup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keeper_name: name, password: chosen }),
+      body: JSON.stringify(keys
+        ? { keeper_name: name, keys }
+        : { keeper_name: name, password, keys: madeKeys }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) throw new Error(data.error || 'Setup failed');
+  }
+
+  // ── The journal being brought ─────────────────────────────────────────────
+  // Read here, in the browser, out of whatever was chosen — the zip from
+  // Make a copy, the same zipped again, or a bare journal.json
+  // (library/carbon_copy.js) — and said back before it goes anywhere.
+  async function chooseCopy(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      const text = await journal_in(file);
+      const journal = text ? JSON.parse(text) : null;
+      const tables = journal?.tables;
+      if (!Array.isArray(tables?.entries) || !tables.settings?.length) throw new Error('not a journal');
+      const keeper = String(tables.settings[0].keeper_name || '').trim();
+      const entries = tables.entries.length;
+      const people = tables.people?.length ?? 0;
+      const taken = journal.taken_at
+        ? new Date(journal.taken_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '';
+      setCopy({
+        name: file.name,
+        keeper,
+        journal,
+        said: [
+          keeper ? `${keeper}’s journal` : 'A journal',
+          `${entries} ${entries === 1 ? 'entry' : 'entries'}`,
+          `${people} ${people === 1 ? 'person' : 'people'}`,
+          taken && `copied ${taken}`,
+        ].filter(Boolean).join(' · '),
+      });
+    } catch {
+      setCopy(null);
+      setError('That file isn’t a copy of a journal. It’s the zip from Settings → Back up your journal.');
+    }
+    setBusy(false);
+  }
+
+  // The claim, with the journal in it: one request, and the copy is theirs
+  // with everything in it, or nothing changed (app/api/restore). Squeezed on
+  // the way where the browser can — a journal is mostly text, and a request
+  // past a few megabytes is turned away before it arrives.
+  async function bring(keys = null) {
+    const body = JSON.stringify(keys
+      ? { keys, journal: copy.journal }
+      : { password, keys: madeKeys, journal: copy.journal });
+    let sent = { headers: { 'Content-Type': 'application/json' }, body };
+    if (typeof CompressionStream === 'function') {
+      const squeezed = new Blob([body]).stream().pipeThrough(new CompressionStream('gzip'));
+      sent = { headers: { 'Content-Type': 'application/gzip' }, body: await new Response(squeezed).arrayBuffer() };
+    }
+    const res = await fetch('/api/restore', { method: 'POST', ...sent });
+    if (res.status === 413) throw new Error('That journal is too large to bring in this way.');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) throw new Error(data.error || 'Your journal couldn’t be brought in. Try again.');
   }
 
   // ── The photo ─────────────────────────────────────────────────────────────
@@ -353,7 +617,27 @@ export default function WelcomeScreen() {
           </svg>
         </div>
 
-        {!authed ? (
+        {letGo ? (
+          <>
+            <p className="su-ask">Your setup timed out.</p>
+            <p className="su-why" style={{ textAlign: 'center' }}>
+              A journal that isn’t set up within an hour is let go, so the
+              address is free again.
+            </p>
+            {/* The front door, one label up from a journal it made, with the
+                ticket that made it, which the journal gave back as it went
+                (library/front_door.js), so the same invite starts again. */}
+            <a
+              className="su-go"
+              href={`${window.location.protocol}//${window.location.host.split('.').slice(1).join('.')}/get${
+                new URLSearchParams(window.location.search).get('ticket')
+                  ? `?ticket=${encodeURIComponent(new URLSearchParams(window.location.search).get('ticket'))}`
+                  : ''}`}
+            >
+              Start again
+            </a>
+          </>
+        ) : !authed ? (
           <>
             <div className="su-line">{hasPassword ? 'Writing access' : 'Claim this journal'}</div>
             {!hasPassword && (
@@ -377,17 +661,17 @@ export default function WelcomeScreen() {
                 order and Back is underneath. None on the last screen
                 (Miyel, 2026-09-23): the journal is made by then, and the
                 mark above has become its icon. */}
-            {current !== 'homescreen' && (
+            {path && current !== 'homescreen' && (
               <div
                 className="su-lights"
                 role="progressbar"
                 aria-label="Setup progress"
                 aria-valuemin={1}
-                aria-valuemax={STEPS.length}
+                aria-valuemax={steps.length}
                 aria-valuenow={step + 1}
-                aria-valuetext={`Step ${step + 1} of ${STEPS.length}`}
+                aria-valuetext={`Step ${step + 1} of ${steps.length}`}
               >
-                {STEPS.map((name, i) => (
+                {steps.map((name, i) => (
                   <span
                     key={name}
                     aria-hidden="true"
@@ -401,24 +685,77 @@ export default function WelcomeScreen() {
                 label and a why-line used to sit as a pair. The pair was two
                 things to read where one would do; the second line survives
                 only where a screen genuinely needs a second thought. */}
-            <p className="su-ask">
+            {/* The first screen has no sentence: its two ways in say what
+                they are, in Miyel's words (2026-10-08). */}
+            {current !== 'start' && <p className="su-ask">
               {{
+                  bring: 'Choose your copy.',
                   name: 'Whose journal is this?',
                   photo: 'A picture of you.',
                   prompts: 'A little about yourself.',
                   rig: 'What you listen on.',
                   updates: 'Keep your journal up to date automatically.',
-                  password: 'What you’ll type to get back in.',
-                  gift: giver ? `${giver.name} gifted you this journal.` : 'Did someone give you this journal?',
+                  password: !wayKnown || (faceWay && !typingPassword) ? 'How you’ll get back in.' : 'What you’ll type to get back in.',
+                  spare: 'Your spare key.',
+                  gift: giver ? `${giver.name} invited you.` : '\u00a0',
                   homescreen: 'It’s yours. Put it on your home screen.',
               }[current]}
-            </p>
+            </p>}
+
+            {current === 'start' && (
+              <div className="su-ways">
+                <button type="button" className="su-way" onClick={() => { setError(''); setPath('new'); setStep(0); }}>
+                  <span className="su-way-h">Start from scratch</span>
+                </button>
+                <button type="button" className="su-way" onClick={() => { setError(''); setPath('bring'); setStep(0); }}>
+                  <span className="su-way-h">Import an existing journal</span>
+                </button>
+              </div>
+            )}
+
+            {current === 'bring' && (
+              <div className="su-fields">
+                {/* The photo's chooser, the width of a field: pressed, the
+                    phone's own file picker; once a file is read, its name
+                    and the line that says whose journal it is. Pressed
+                    again, another file. */}
+                <label className="su-copy">
+                  <input className="su-file" type="file" accept=".zip,.json,application/zip,application/json" onChange={chooseCopy} disabled={busy} />
+                  {copy ? (
+                    <>
+                      <span className="su-copy-name">{copy.name}</span>
+                      <span className="su-copy-said">{copy.said}</span>
+                    </>
+                  ) : (
+                    <span className="su-copy-pick">{busy ? 'Reading…' : 'Choose the file'}</span>
+                  )}
+                </label>
+                {/* A journal brought in keeps its keeper's own choice; one
+                    from a copy older than the choice is listed, as every
+                    journal is unless switched off, and is told so here. */}
+                {DIRECTORY_URL && copy && copy.journal?.tables?.settings?.[0]?.findable !== false && (
+                  <p className="su-why">{LISTED_SAID}</p>
+                )}
+                <button type="button" className="su-go" disabled={busy || !copy} onClick={() => advance()}>Next</button>
+              </div>
+            )}
 
             {current === 'name' && (
               <form className="su-fields" onSubmit={e => { e.preventDefault(); if (name.trim()) advance(); }}>
                 <div>
-                  <input className="su-field" value={name} onChange={e => setName(e.target.value)} autoFocus autoComplete="name" placeholder="Your name" aria-label="Your name" />
+                  <input className="su-field su-name" value={name} onChange={e => setName(e.target.value)} autoFocus autoComplete="name" placeholder="Your name" aria-label="Your name" />
                 </div>
+                {/* ── Said plainly, at the name, 2026-10-08 ─────────────────
+                    Every journal is on the Board unless its keeper switches
+                    it off (Miyel's Board brief: "say so plainly during
+                    setup"). Here, because the name is the first thing the
+                    Board shows; a copy with no directory has no Board. */}
+                {/* Off from 2026-10-20 while the Board was reworked (Miyel:
+                    "we don't even know if it's called the board"), and back
+                    on 2026-10-22 in words that do not name it, her pick:
+                    anyone can start a journal at the front door now, and
+                    being listed is said at setup (AGENTS). */}
+                {DIRECTORY_URL && <p className="su-why">{LISTED_SAID}</p>}
                 <button type="submit" className="su-go" disabled={busy || !name.trim()}>Next</button>
               </form>
             )}
@@ -458,41 +795,46 @@ export default function WelcomeScreen() {
                           className={'ab-prompt-pick' + (open ? ' ab-prompt-pick--on' : '')}
                           onClick={() => setPicking(open ? null : i)}
                           aria-expanded={open}
-                          aria-label={`Opening ${i + 1}`}
+                          aria-label={`Prompt ${i + 1}`}
                         >
                           <span className={chosen ? 'ab-prompt-ask' : 'ab-prompt-none'}>
-                            {chosen ? chosen.text : 'Choose an opening'}
+                            {chosen ? chosen.text : 'Choose a prompt'}
                           </span>
                           <CaretDown size={11} weight="bold" aria-hidden="true" />
                         </button>
-                        {open && (
-                          <div className="ab-prompt-menu" role="group" aria-label="Openings">
-                            {BIO_PROMPTS.map(prompt => {
-                              const on = prompt.key === row.key;
-                              const elsewhere = !on && bio.some((r, j) => j !== i && r.key === prompt.key);
-                              return (
-                                <button
-                                  key={prompt.key}
-                                  type="button"
-                                  className={'ab-prompt-opt' + (on ? ' ab-prompt-opt--on' : '') + (elsewhere ? ' ab-prompt-opt--taken' : '')}
-                                  onClick={() => {
-                                    setBio(rows => rows.map((r, j) => {
-                                      if (j === i) return { ...r, key: prompt.key };
-                                      if (r.key === prompt.key) return { ...r, key: rows[i].key };
-                                      return r;
-                                    }));
-                                    setPicking(null);
-                                  }}
-                                  aria-pressed={on}
-                                >
-                                  <span>{prompt.text}</span>
-                                  {on && <Check size={12} weight="bold" aria-hidden="true" />}
-                                  {elsewhere && <span className="ab-prompt-taken" aria-hidden="true">in use</span>}
-                                </button>
-                              );
-                            })}
+                        {/* Folded open and shut rather than appearing (Miyel, 2026-10-20:
+                            "more like a smooth animation than just appearing"): drawn
+                            always, its height eased from nothing, and out of reach while shut. */}
+                        <div className={'ab-prompt-fold' + (open ? ' ab-prompt-fold--open' : '')} inert={!open}>
+                          <div className="ab-prompt-fold-in">
+                            <div className="ab-prompt-menu" role="group" aria-label="Prompts">
+                              {BIO_PROMPTS.map(prompt => {
+                                const on = prompt.key === row.key;
+                                const elsewhere = !on && bio.some((r, j) => j !== i && r.key === prompt.key);
+                                return (
+                                  <button
+                                    key={prompt.key}
+                                    type="button"
+                                    className={'ab-prompt-opt' + (on ? ' ab-prompt-opt--on' : '') + (elsewhere ? ' ab-prompt-opt--taken' : '')}
+                                    onClick={() => {
+                                      setBio(rows => rows.map((r, j) => {
+                                        if (j === i) return { ...r, key: prompt.key };
+                                        if (r.key === prompt.key) return { ...r, key: rows[i].key };
+                                        return r;
+                                      }));
+                                      setPicking(null);
+                                    }}
+                                    aria-pressed={on}
+                                  >
+                                    <span>{prompt.text}</span>
+                                    {on && <Check size={12} weight="bold" aria-hidden="true" />}
+                                    {elsewhere && <span className="ab-prompt-taken" aria-hidden="true">in use</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        )}
+                        </div>
                         <textarea
                           className="ab-prompt-input"
                           rows={1}
@@ -546,7 +888,29 @@ export default function WelcomeScreen() {
               </form>
             )}
 
-            {current === 'password' && (
+            {/* While the device is asked whether it has Face ID: the turning
+                circle the front door's steps wear, and what is happening
+                (Miyel, 2026-10-20: "a loading circle ... that says checking
+                device"). */}
+            {current === 'password' && !wayKnown && (
+              <div className="su-fields">
+                <p className="su-checking" role="status"><span className="fd-spin" aria-hidden="true" />Checking device…</p>
+              </div>
+            )}
+
+            {current === 'password' && wayKnown && faceWay && !typingPassword && (
+              <div className="su-fields su-face">
+                <button type="button" className="ko-use su-face-use" onClick={claimWithFace} disabled={busy}>
+                  <faceWay.Glyph size={32} aria-hidden="true" />
+                  <span>{busy ? 'Claiming…' : `Use ${faceWay.word}`}</span>
+                </button>
+                <button type="button" className="pg-or" disabled={busy} onClick={() => { setTypingPassword(true); setError(''); }}>
+                  or choose a password
+                </button>
+              </div>
+            )}
+
+            {current === 'password' && wayKnown && (!faceWay || typingPassword) && (
               <form
                 className="su-fields"
                 onSubmit={e => {
@@ -558,18 +922,19 @@ export default function WelcomeScreen() {
                   // would; only the saving is skipped.
                   if (password.length < PASSWORD_FLOOR) { setError(`At least ${PASSWORD_FLOOR} characters.`); return; }
                   if (password !== confirm) { setError('The two passwords do not match.'); return; }
-                  advance(claim);
+                  advance(path === 'bring' ? bring : claim);
                 }}
               >
 
-                {/* The address the password is filed under — the same value
+                {/* The name the password is filed under — the keeper's,
+                    being set here or brought with the journal, the same value
                     the sign-in form and Settings use, so the entry saved here
                     is the one offered later. Visible and writable, because a
                     password manager ignores a field it considers hidden and
                     Safari skips a read-only one. Typing into it does nothing.
                     See hooks/useJournalHost.js. */}
                 <div>
-                  <input className="su-field su-who" type="text" name="username" autoComplete="username" value={host} onChange={() => {}} aria-label="Journal" tabIndex={-1} />
+                  <input className="su-field su-who" type="text" name="username" autoComplete="username" value={filedUnder} onChange={() => {}} aria-label="Name" tabIndex={-1} />
                 </div>
                 {/* The eye, 2026-09-13: a password typed once on a phone
                     keyboard, for six months of use, with no way to look at
@@ -602,7 +967,24 @@ export default function WelcomeScreen() {
                 <button type="submit" className="su-go" disabled={busy || !password || !confirm}>
                   {busy ? 'Claiming…' : 'Claim the journal'}
                 </button>
+                {faceWay && (
+                  <button type="button" className="pg-or" disabled={busy} onClick={() => { setTypingPassword(false); setError(''); }}>
+                    or use {faceWay.word}
+                  </button>
+                )}
               </form>
+            )}
+
+            {current === 'spare' && (
+              <div className="su-fields">
+                {spareCode ? (
+                  <SpareKeyShown code={spareCode} heading={false} withPassword={false} onSaved={() => advance()} />
+                ) : !error ? (
+                  <p className="su-hint" style={{ textAlign: 'center' }}>Making your spare key…</p>
+                ) : (
+                  <button type="button" className="pg-or" onClick={makeSpareNow}>Try again</button>
+                )}
+              </div>
             )}
 
             {current === 'updates' && (
@@ -615,16 +997,18 @@ export default function WelcomeScreen() {
               <div className="su-fields">
                 {giver ? (
                   <>
-                    {/* A GIFT FROM, their face over the plain mark, the name
-                        under it (Miyel, 2026-09-23: the picture sandwiched
-                        between the two), then the question and the one
-                        choice — ticked, visible, one tap to undo. The
-                        heading over all of it says who gifted it, and the
-                        question is "Say hello?" (Miyel, 2026-09-28: the
-                        brief's Say hello, kept with the selection rather
-                        than made a button of its own). */}
+                    {/* INVITED BY (A GIFT FROM until 2026-10-21, and the
+                        ticket the present: Miyel's words), their face over
+                        the plain mark, the name under it (Miyel,
+                        2026-09-23: the picture sandwiched between the two),
+                        then the question and the one choice — ticked,
+                        visible, one tap to undo. The heading over all of it
+                        says who invited them, and the question is "Say
+                        hello?" (Miyel, 2026-09-28: the brief's Say hello,
+                        kept with the selection rather than made a button of
+                        its own). */}
                     <div className="su-gift">
-                      <span className="su-gift-from"><Gift size={12} aria-hidden="true" /> A gift from</span>
+                      <span className="su-gift-from"><Ticket size={12} aria-hidden="true" /> Invited by</span>
                       <span className="su-gift-face" aria-hidden="true">
                         <User size={34} weight="regular" />
                         <img src={`${journalUrl(giver.address)}/api/portrait`} alt="" onError={e => { e.currentTarget.style.display = 'none'; }} />
@@ -669,31 +1053,7 @@ export default function WelcomeScreen() {
                       })}
                     >Next</button>
                   </>
-                ) : (
-                  <>
-                    <p className="su-why">If a friend handed you this, scan the code they showed you — the gift, or their card.</p>
-                    <button type="button" className="su-go" disabled={busy} onClick={() => { setGiftTrouble(''); setScanningGift(true); }}>Scan their code</button>
-                    {giftTrouble && <p className="su-why">{giftTrouble}</p>}
-                  </>
-                )}
-                {scanningGift && (
-                  <CodeScanner
-                    onClose={() => setScanningGift(false)}
-                    onRead={async text => {
-                      setScanningGift(false);
-                      setGiftTrouble('');
-                      // The Give code is /get?gift=<their journal>; a card's
-                      // code, or a cover's, is their journal itself.
-                      let address = '';
-                      try { address = tidyJournal(new URL(text).searchParams.get('gift') || '') || tidyJournal(text); } catch { address = tidyJournal(text); }
-                      if (!address) { setGiftTrouble('That code isn’t a journal.'); return; }
-                      if (address === tidyJournal(host)) { setGiftTrouble('That’s this journal’s own code.'); return; }
-                      const answer = await fetch(`/api/setup?giver=${encodeURIComponent(address)}`).then(r => r.json()).catch(() => ({}));
-                      if (answer?.giver?.name) setGiver(answer.giver);
-                      else setGiftTrouble('That journal isn’t answering just now. You can add them later from your book.');
-                    }}
-                  />
-                )}
+                ) : null}
               </div>
             )}
 
@@ -710,7 +1070,7 @@ export default function WelcomeScreen() {
 
             {error && <div className="su-error">{error}</div>}
 
-            {step > 0 && !claimed && (
+            {path && !claimed && (
               <div className="su-under">
                 <button
                   type="button"
@@ -724,14 +1084,19 @@ export default function WelcomeScreen() {
                       setPromptIndex(i => i - 1);
                       return;
                     }
+                    // From the first screen of either way, back to the
+                    // choice between them.
+                    if (step === 0) { setPath(null); return; }
                     setStep(s => s - 1);
                   }}
                 >Back</button>
                 {/* No Skip on the password screen. Under this flow nobody
                     typed one at deploy, so there is nothing to keep; a
                     developer who set SESSION_PASSWORD by hand can find
-                    Settings. */}
-                {current !== 'password' && (
+                    Settings. None on the first screen of either way either:
+                    the name is the one thing a new journal needs, and the
+                    copy is the whole of bringing one. */}
+                {step > 0 && current !== 'password' && (
                   <button type="button" className="su-skip" disabled={busy} onClick={() => advance()}>Skip</button>
                 )}
               </div>

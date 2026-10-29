@@ -78,12 +78,15 @@ import { MessageWayIn } from '../../../components/main_components/Slug_Page/Mess
 import SentBy, { creditOn, useTrail } from '../../../components/main_components/Slug_Page/SentBy';
 import SenderTool from '../../../components/main_components/Slug_Page/SenderTool';
 import SendSheet from '../../../components/main_components/SendSheet';
+import { PromptSheet, useMonthPrompt } from '../../../components/main_components/MonthPrompt';
 import StarRating from '../../../components/main_components/StarRating';
 import StarPicker from '../../../components/session_components/StarRating';
 import Chip from '../../../components/main_components/Slug_Page/Chip';
-import { useBookplate } from '../../../components/main_components/Bookplate';
+import { useBookplate, useVisiting } from '../../../components/main_components/Bookplate';
 import { useTheme } from '../../../components/main_components/Lightswitch';
 import { useEntryEditor } from '../../../hooks/useEntryEditor';
+import { useSnippet } from '../../../hooks/useSnippet';
+import SnippetButton, { SnippetMeter, SnippetLink } from '../../../components/main_components/Slug_Page/SnippetButton';
 import { PENDING_KEY, TRACK_NOTE_KEY, TRACK_NOTE_WRITING, saidSoAboutTheDesk } from '../../../hooks/useListeningSession';
 
 const COVER_LABELS = { toCode: 'Show the code for this entry', toPicture: 'Show the cover' };
@@ -98,12 +101,21 @@ const NOTHING_WRITTEN = { rating: 0, favorite: false, formative: false, note: ''
 // the note is then a page of a folder, with its tabs at the foot of the
 // screen (FolderFooter, useFolder).
 export default function TrackNotePage({ entry, authed = false, layered = false, writing = false, onSaved = null, onLeave = null, folder = null }) {
+  // Thirty seconds of the song, and the way out to it (hooks/useSnippet.js).
+  // A track note is about one song, so its preview gets the room: the large
+  // button, a meter the width of the page, and the link under it.
+  const snippet = useSnippet(entry.album, entry.artist);
+  const songPlay = snippet.playFor(null, entry.song);
+  const songLink = snippet.songLinkFor(null, entry.song);
   const router = useRouter();
   const turnTo = useFolder(writing ? null : folder, entry.slug);
   const edit = useEntryEditor(entry, { layered });
   const correcting = edit.editing;
   const headerSlot = useLayerHeaderSlot();
   const { site_address, keeper_name } = useBookplate();
+  // A friend's entry read inside this journal asks their journal for its
+  // cover's code (2026-10-28).
+  const elsewhere = useVisiting() && site_address ? `https://${tidyAddress(site_address)}` : '';
   const { theme } = useTheme();
 
   // ── A new one: what has been written, kept per song ─────────────────────
@@ -156,6 +168,13 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
     year: entry.year || '', genre: entry.genre || '', album_art: entry.album_art || '',
     collection_id: entry.collection_id || '', rating: written.rating, notes: written.note,
     favorite: written.favorite === true, formative: written.formative === true,
+    // The send a note came out of rides in its draft the way it rides in a
+    // listen's (save_draft): who sent the song, and which send to settle, so
+    // a note picked up again from the picker still knows.
+    entry_type: entry.entry_type || '',
+    received_from: entry.received_from || '', received_date: entry.received_date || '',
+    received_from_url: entry.received_from_url || '', credit_private: entry.credit_private === true,
+    submission_id: entry.submission_id || null,
   });
   const openedWith = useRef(draftBody);
   const unsent = useRef(null);
@@ -236,6 +255,9 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
   const [trailOpen, setTrailOpen] = useState(false);
   const [crediting, setCrediting] = useState(false);
   const [sending, setSending] = useState(false);
+  // The month's prompt, while one is open (MonthPrompt.js).
+  const [prompt, tellPrompt] = useMonthPrompt(authed);
+  const [submitting, setSubmitting] = useState(false);
   const [barSlot, setBarSlot] = useState(null);
 
   // ── The cover as the code ───────────────────────────────────────────────
@@ -278,6 +300,7 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
       slug={entry.slug}
       onSender={() => setCrediting(true)}
       onSend={() => setSending(true)}
+      onSubmit={prompt && !prompt.sent ? () => setSubmitting(true) : null}
       onDelete={edit.remove}
     />
   );
@@ -311,7 +334,7 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
                 className={'tn-cover' + (coverCode ? ' tn-cover--code' : ' ln-fold')}
                 picture={<img src={entry.album_art} alt={entry.album} decoding="sync" />}
                 address={entryUrl}
-                codeSrc={`/api/entries/${encodeURIComponent(entry.slug)}/code?theme=${theme === 'dark' ? 'dark' : 'light'}`}
+                codeSrc={`${elsewhere}/api/entries/${encodeURIComponent(entry.slug)}/code?theme=${theme === 'dark' ? 'dark' : 'light'}`}
                 turned={coverCode}
                 onTurn={setCoverCode}
                 backGlyph={<VinylRecord size={12} weight="bold" />}
@@ -386,21 +409,41 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
             </div>
           )}
 
+          {!composing && (songPlay || songLink) && (
+            <div className="tn-snippet">
+              {songPlay && (
+                <>
+                  <div className="tn-snippet-play">
+                    <SnippetButton snippetKey={`${entry.slug}:song`} play={songPlay} title={entry.song} large />
+                    <SnippetMeter snippetKey={`${entry.slug}:song`} duration={songPlay.duration} always />
+                  </div>
+                  {/* Said only of a preview: a whole song needs no caption. */}
+                  {songPlay.kind === 'preview' && songPlay.duration > 0 && (
+                    <p className="ln-snippet-caption">A {songPlay.duration}-second preview</p>
+                  )}
+                </>
+              )}
+              <SnippetLink href={songLink}>Open in Apple Music</SnippetLink>
+            </div>
+          )}
+
           {/* Who put you onto it — the line, or the tool while it is open, in
-              the one place its answer prints. */}
-          {!writing && (crediting && authed
+              the one place its answer prints. A note being written on a
+              song somebody sent prints the line as the saved note will (the
+              preview's rule); the tool waits for the note to exist. */}
+          {crediting && authed && !writing
             ? <SenderTool key={`sender-${entry.slug}`} entry={entry} barSlot={barSlot} onDone={() => setCrediting(false)} />
             : credit && !correcting && (
               <SentBy
-                key={`sent-${entry.slug}`}
+                key={`sent-${entry.slug || 'writing'}`}
                 entry={entry}
                 keeper={(keeper_name || '').trim()}
-                mine={authed}
+                mine={authed && !writing}
                 trail={trail}
                 open={trailOpen}
                 onOpen={setTrailOpen}
               />
-            ))}
+            )}
 
           {/* An ordinary listen of the album, through the key every other
               way into a listen uses — the song on the desk is put away
@@ -492,7 +535,15 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
                   year: entry.year || '',
                   genre: entry.genre || '',
                   album_art: entry.album_art || '',
-                  entry_type: 'Personal Library',
+                  // Submission when the inbox opened this note on a song
+                  // somebody sent (DECISIONS, 2026-10-06: a song send is
+                  // logged as a track note), with the credit written in the
+                  // listen's own words; blank fields write null.
+                  entry_type: entry.entry_type || 'Personal Library',
+                  received_from: entry.received_from || '',
+                  received_date: entry.received_date || '',
+                  received_from_url: entry.received_from_url || '',
+                  credit_private: entry.credit_private === true,
                   rating: written.rating ? `${written.rating} stars` : '',
                   favorite: written.favorite === true,
                   formative: written.formative === true,
@@ -508,6 +559,18 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
                 delete all[songKey];
                 localStorage.setItem(TRACK_NOTE_WRITING, JSON.stringify(all));
               } catch { /* nothing kept */ }
+              // The send that started this note is settled, the way a listen
+              // settles its send (useListeningSession): the row in the inbox
+              // becomes `logged`, pointed at this note. Not awaited and
+              // silent — the note is saved, and a send already deleted from
+              // the inbox is not a reason to say it failed.
+              if (entry.submission_id && data.entry?.id) {
+                fetch(`/api/submissions/${entry.submission_id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ entry_id: data.entry.id }),
+                }).catch(() => {});
+              }
               onSaved?.(data.entry);
             } catch (err) {
               setTrouble(err.message);
@@ -537,6 +600,19 @@ export default function TrackNotePage({ entry, authed = false, layered = false, 
             // which track (migrations/026_track_sends.sql).
             song: entry.song || '',
           }}
+        />
+      )}
+      {/* The month's prompt (MonthPrompt.js): this entry's record and its
+          writing as they stand, sent to Listening Notes on one press. Mounted
+          here for the reason the send sheet is. */}
+      {!writing && (
+        <PromptSheet
+          open={submitting}
+          onClose={() => setSubmitting(false)}
+          entry={entry}
+          keeper={(keeper_name || '').trim()}
+          prompt={prompt}
+          onSent={tellPrompt}
         />
       )}
     </div>

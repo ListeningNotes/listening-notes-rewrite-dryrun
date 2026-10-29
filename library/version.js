@@ -44,3 +44,46 @@ export const REPORTS_URL =
 // NEXT_PUBLIC_INSTAGRAM_URL, or leaves it empty and the line is not drawn.
 export const INSTAGRAM_URL =
   process.env.NEXT_PUBLIC_INSTAGRAM_URL ?? 'https://www.instagram.com/listeningnotes.blog';
+
+// Where the journals that chose to be listed are found. The same address on
+// every copy, the way REPORTS_URL and INSTAGRAM_URL are; a fork sets
+// NEXT_PUBLIC_DIRECTORY_URL, or leaves it empty and there is no directory.
+// `??`, not `||`, so a fork that empties it gets no directory rather than
+// falling back to this one; and a constant for the reason in GiveSheet.js —
+// a copy that could point it elsewhere could quietly stand in for the
+// original (Miyel's directory instructions, 2026-10-07).
+export const DIRECTORY_URL =
+  process.env.NEXT_PUBLIC_DIRECTORY_URL ?? 'https://www.listeningnotes.blog/api/directory';
+
+// Whether the Board is drawn yet, 2026-10-29: off while Miyel works on it
+// ("is it possible to release an update but just have community tab say
+// coming soon"). Off, Community says Coming soon and Find people on the
+// Board is not offered. Everything under it still runs: journals are listed,
+// the Board is still read as People opens so the directory keeps itself
+// fresh, and /directory still answers anybody who has the address. A
+// constant, not a setting; the Board's own branch turns it back on.
+export const BOARD_OPEN = false;
+
+// Where keepers send Listening Notes, the publication, a record for the
+// month's prompt (2026-10-22, Miyel: "listeningnotes.blog is the magazine.
+// It is the publication. It is where people send"): the magazine's own
+// address. What arrives is kept by the studio, the publication's own
+// journal, at an address nobody is shown (library/hosting_directory.js,
+// studio; library/month_prompt.js). A constant like the others, for the
+// same reason; a fork sets NEXT_PUBLIC_PUBLICATION_URL, or leaves it empty
+// and nothing is sent.
+export const PUBLICATION_URL =
+  process.env.NEXT_PUBLIC_PUBLICATION_URL ?? 'https://listeningnotes.blog';
+
+// ── A sandbox, 2026-10-17 ─────────────────────────────────────────────────
+// A preview of this copy built with NEXT_PUBLIC_SANDBOX set to 1 — on
+// Vercel's Preview environment and nowhere else, beside a database of its
+// own — is a sandbox: a copy of the journal to try things on, and nothing
+// leaves it. No send, wave, reply, Board listing or problem report reaches
+// anybody (library/outbox.js and the report page ask this), and it glows
+// violet round the screen with SANDBOX in the corner, so it is never taken
+// for the journal it was copied from (app/layout.js). Reading is untouched — friends'
+// beacons, the Board, a record search — because reading bothers nobody.
+// Both the mark and the words are Miyel's.
+export const SANDBOX = process.env.NEXT_PUBLIC_SANDBOX === '1';
+export const SANDBOX_SAID = 'Nothing leaves the sandbox.';

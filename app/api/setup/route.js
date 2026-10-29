@@ -22,13 +22,15 @@
 // could not be moved afterwards.
 
 import { NextResponse } from 'next/server';
-import { requireWristband } from '@/library/wristband';
+import { requireWristband, issueWristband, WRISTBAND_COOKIE } from '@/library/wristband';
 import { isSetUp, save_settings } from '@/library/settings_actions';
 import { claim_journal } from '@/library/database_actions';
-import { tidyAddress, tidyJournal } from '@/library/return_address';
+import { addressFrom, tidyJournal } from '@/library/return_address';
 import { ask_journal_name } from '@/library/people_actions';
 import { mayKnock, whoIsKnocking } from '@/library/doorman';
 import { hashPassword, passwordSource, save_secrets, setupWindowOpen } from '@/library/secrets';
+import { holds_any, keep_only } from '@/library/keyring';
+import { hosting, deploymentSetting } from '@/library/hosting_directory';
 
 // Eight is the floor. There is no strength meter — one password, chosen once,
 // saved by a password manager the field is shaped for — but a floor keeps
@@ -42,13 +44,16 @@ const PASSWORD_FLOOR = 8;
 //
 // ── Who gave it, 2026-09-23 ─────────────────────────────────────────────────
 // A copy deployed from a gift carries the giver's address in GIFT_FROM, set
-// by the deploy button (/get, when the link came from Give). Only somebody
-// holding this journal's wristband is told it — during setup that is the
-// person claiming it — because who gave whom a journal is not a public fact.
-// `?giver=<address>` asks that journal its keeper's name, for the card on
-// the setup screen: the address came from GIFT_FROM or from a scan of the
-// giver's code. The question goes through the relay door, like every
-// outbound request a page can make this copy send.
+// by the deploy button (/get, when the link came from Give — Invite since
+// 2026-10-21). Only somebody holding this journal's wristband is told it —
+// during setup that is the person claiming it — because who gave whom a
+// journal is not a public fact. A deployment that hosts journals speaks for
+// none of them, so it has none to tell: there, the front door names the
+// inviter in the setup link itself. `?giver=<address>` asks that journal its
+// keeper's name, for the card on the setup screen: the address came from
+// GIFT_FROM, from the setup link or from a scan of the inviter's code. The
+// question goes through the relay door, like every outbound request a page
+// can make this copy send.
 export async function GET(request) {
   try {
     const claimed = await isSetUp();
@@ -56,12 +61,14 @@ export async function GET(request) {
     // Whether the door is open with nothing typed — the half hour after a
     // build. The page knocks first when it is.
     const open = !claimed && !password && (await setupWindowOpen());
-    const answer = { claimed, has_password: Boolean(password), open };
+    // `hosted`, 2026-10-20: a journal on a deployment that hosts many, whose
+    // updates come with each release — setup draws no updater screen for it.
+    const answer = { claimed, has_password: Boolean(password), open, hosted: hosting() };
     if (!(await requireWristband(request))) {
-      const gift = tidyJournal(process.env.GIFT_FROM || '');
+      const gift = tidyJournal(deploymentSetting('GIFT_FROM') || '');
       if (gift) answer.gift = gift;
       const asked = tidyJournal(new URL(request.url).searchParams.get('giver') || '');
-      if (asked && mayKnock('relay', whoIsKnocking(request)).allowed) {
+      if (asked && (await mayKnock('relay', whoIsKnocking(request))).allowed) {
         answer.giver = { address: asked, name: await ask_journal_name(asked, 4000) };
       }
     }
@@ -82,20 +89,29 @@ export async function POST(request) {
       return NextResponse.json({ error: 'This journal is already set up.' }, { status: 409 });
     }
 
-    const { keeper_name, password } = await request.json();
+    const { keeper_name, password, keys } = await request.json();
 
     // The keeper's name is the only thing asked for that anything depends on,
     // and even it is allowed to be blank — coverName() has a fallback and the
     // schema note says somebody may finish setup without naming themselves.
     const name = String(keeper_name || '').trim();
 
-    // A password is required, even on a copy that has SESSION_PASSWORD in
-    // its environment: under this flow nobody typed one at deploy, so there
-    // is nothing to keep, and the one chosen here takes over.
+    // A password, or a key, 2026-10-20 (Miyel's brief: a journal claimed
+    // with a passkey and no password). A password chosen here is required to
+    // be a real one even on a copy with SESSION_PASSWORD in its environment:
+    // under this flow nobody typed one at deploy, so there is nothing to
+    // keep, and the one chosen here takes over. Without one, the claim must
+    // name a key this browser has just made, and the ring keeps only the
+    // keys the claim names — a key somebody else left on an unclaimed copy
+    // goes (library/keyring.js, keep_only).
     const chosen = String(password || '');
-    if (chosen.length < PASSWORD_FLOOR) {
+    if (chosen && chosen.length < PASSWORD_FLOOR) {
       return NextResponse.json({ error: `At least ${PASSWORD_FLOOR} characters.` }, { status: 400 });
     }
+    if (!chosen && !(await holds_any(keys))) {
+      return NextResponse.json({ error: 'Use Face ID or choose a password first.' }, { status: 400 });
+    }
+    await keep_only(keys);
 
     // The owner row first, and separately, because it is the half with no
     // other writer. Every entry files against it through a COALESCE, and until
@@ -121,26 +137,22 @@ export async function POST(request) {
 
     // The password, and the end of the claim code. Both in one write: from
     // here the code is not an answer to anything, and a stale one left in the
-    // row would be a second key to a door that now has a real one.
+    // row would be a second key to a door that now has a real one. Claimed
+    // with a key, there is no password to write.
     await save_secrets({
-      password_hash: await hashPassword(chosen),
+      ...(chosen ? { password_hash: await hashPassword(chosen) } : {}),
       claim_code: null,
       setup_open_until: null,
     });
 
-    return NextResponse.json({ ok: true });
+    // The claim is a proof: the band is stamped afresh (library/wristband.js),
+    // so the spare key a step later is not asked for Face ID again.
+    const sealed = NextResponse.json({ ok: true });
+    sealed.cookies.set(WRISTBAND_COOKIE.name, await issueWristband({ proved: true }), WRISTBAND_COOKIE.options);
+    return sealed;
   } catch (error) {
     return NextResponse.json({ error: error?.message || 'Setup failed' }, { status: 500 });
   }
-}
-
-// Where this copy is reached. Vercel and every proxy in front of it say so in
-// x-forwarded-host; a bare `next start` says so in host.
-function addressFrom(request) {
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
-  const bare = host.split(',')[0].trim();
-  if (/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(bare)) return '';
-  return tidyAddress(bare);
 }
 
 // Ten characters from an alphabet with no 0/O or 1/I/l in it, so it survives

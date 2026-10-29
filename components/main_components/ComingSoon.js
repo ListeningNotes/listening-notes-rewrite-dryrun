@@ -43,6 +43,15 @@
 // all — it built and started anyway, and the only useful page is one that
 // says what to set. That one is addressed to the owner alone, because nobody
 // else can be looking at it yet.
+//
+// A third, 'nobody', 2026-10-20: on a deployment that hosts journals, an
+// address with no journal at it. One sentence, and no hint of whose journal
+// it might have been. Since 2026-10-22 a second line and one door, for
+// whoever left a setup unfinished: a journal nobody set up is let go after an
+// hour and its address is free again (library/front_door.js), so the door
+// goes back to the front door's Start a journal (Miyel: "give a message about
+// the set up timing out and to restart"). `home` is that page; without it,
+// the one sentence.
 
 // The mark, drawn rather than spelled. Third copy of this path data — SiteNav
 // and HomeNav carry the other two — and consistent with how the site already
@@ -61,9 +70,10 @@
 const SOURCE_URL =
   process.env.NEXT_PUBLIC_SOURCE_URL || 'https://github.com/ListeningNotes/listening-notes';
 
-export default function ComingSoon({ reason = 'setup', said = '' }) {
+export default function ComingSoon({ reason = 'setup', said = '', home = '' }) {
   const noDatabase = reason === 'database';
   const unreachable = reason === 'unreachable';
+  const nobody = reason === 'nobody';
   return (
     <div className="cs-page">
       <style>{`
@@ -130,7 +140,22 @@ export default function ComingSoon({ reason = 'setup', said = '' }) {
         />
         </svg>
       </div>
-      {noDatabase ? (
+      {nobody ? (
+        <>
+          <p className="cs-said">
+            There’s no journal at this address.
+          </p>
+          {home && (
+            <>
+              <p className="cs-how" style={{ textAlign: 'center' }}>
+                If you were setting one up, it timed out after an hour, and
+                the address is free again.
+              </p>
+              <a href={home} className="cs-help">Start again</a>
+            </>
+          )}
+        </>
+      ) : noDatabase ? (
         <>
           <p className="cs-said">
             This copy has no database yet.

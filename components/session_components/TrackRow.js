@@ -44,9 +44,19 @@
 // leaves it and when the name is pressed again, and when another track
 // lights; a written note is a press on any row, lit or not; and the row is
 // memoised, so typing in one note redraws one row and not the record.
+//
+// ── Only a note's own words open it, 2026-10-17 ───────────────────────────
+// Miyel, after two listens: "if I click on a song, just to click on a song
+// to go to it, to highlight it on the beacon or to re-rate it or something,
+// it should not open the notes with the keyboard." Add notes, Edit notes and
+// the written note itself are the only presses that bring the keyboard up.
+// A name, a star or a heart lights the track and puts any other track's
+// note away, keyboard and all (letGo, app/session/page.js) — the box used to
+// be taken off the screen with the cursor still in it, and iOS kept the
+// keyboard up over nothing.
 'use client';
 import { memo, useLayoutEffect, useRef } from 'react';
-import { Heart } from '@phosphor-icons/react';
+import { Heart, PencilSimple } from '@phosphor-icons/react';
 import StarRating from './StarRating';
 import { colors } from '../../library/sitewide_visuals';
 
@@ -57,22 +67,41 @@ function TrackRow({
   rating = 0, favorite = false, note = '',
   onAir = false,
   noting = false,
-  onPress, onRate, onFavorite, onNote, onNoteChange, onNoteShut, onSend = null,
+  onPress, onRate, onFavorite, onNote, onNoteChange, onNoteShut,
 }) {
   const number = track.number || index + 1;
   const title = track.title;
   const written = !!note.trim();
-  const offered = onAir && !written && !noting;
 
   // The cursor goes in as the field arrives, because pressing the offer was
   // asking to write — in the layout pass, while the press is still on the
   // stack, which is the only moment a phone raises its keyboard for it.
+  // First the page is asked to move the box onto where the keyboard will be
+  // (app/session/page.js), so iOS is shown a field already in view and has
+  // no slide of its own to make — the same order a tap on a note keeps.
+  //
+  // ── The cursor is placed before the keyboard comes, 2026-10-17 ─────────
+  // It was put at the end of the writing just after the focus, with the
+  // keyboard already starting. iOS's keyboard keeps its own copy of the
+  // words around the cursor, to correct and suggest from, and a cursor moved
+  // by the page once it has started is a move it can miss — WebKit's own
+  // reports describe the copy going stale, the next word left uncapitalised
+  // and corrections made against text that is not there (bugs 236937,
+  // 265856). Miyel, 2026-10-17: autocorrect "feels funny… choosing weird
+  // words to change". So the cursor goes in first and the focus second, the
+  // order the tap on a note already kept, and the keyboard starts from the
+  // right place. Where it goes: the letter pressed, when the note was pressed
+  // (letterUnder, below), or the end.
   const field = useRef(null);
+  const caret = useRef(null);
   useLayoutEffect(() => {
     const el = field.current;
     if (!noting || !el) return;
+    el.dispatchEvent(new Event('ses-note-opening', { bubbles: true }));
+    const at = Math.min(caret.current ?? el.value.length, el.value.length);
+    caret.current = null;
+    el.setSelectionRange(at, at);
     el.focus({ preventScroll: true });
-    el.setSelectionRange(el.value.length, el.value.length);
   }, [noting]);
 
   return (
@@ -111,34 +140,41 @@ function TrackRow({
         >
           <Heart size={20} weight={favorite ? 'fill' : 'regular'} />
         </button>
+        {/* ── The pencil, 2026-10-21 ──────────────────────────────────────
+            At the end of the lit row, in a slot every row keeps and leaves
+            empty, so the stars never move when it appears — the thing that
+            sank the envelope in September (Miyel's brief, home and the
+            session). A mark small enough to ignore on a night with nothing
+            to say, and there when there is: writing a track note has to
+            feel optional, and a word or an open box under the row read as
+            a field to fill in. It opens the note, the way the written note
+            itself does. */}
+        <span className="ses-row-pen">
+          {onAir && !noting && (
+            <button
+              type="button"
+              className="ses-pen"
+              onClick={() => onNote(index)}
+              title={written ? 'Edit the note on this track' : 'Write about this track'}
+              aria-label={written ? `Edit the note on ${title}` : `Write about ${title}`}
+            >
+              <PencilSimple size={17} weight="regular" />
+            </button>
+          )}
+        </span>
       </div>
 
       {/* ── The line under the name ──────────────────────────────────────
           A written note, on any row: pressing it lights the track and opens
-          the box it was written in. On the lit track, two words under it —
-          *Add notes* (or *Edit notes*) and *Send track* — both in the
-          caption face, centred. The envelope was tried beside the heart (it
-          moved the stars), at the end of this line, and under the live dot,
-          and none read right; a word cannot be mistaken for anything. */}
-      {!noting && (written || onAir) && (
+          the box it was written in, the cursor on the letter pressed. The two
+          words that stood under the lit track — Add notes and Send track —
+          went for the pencil on 2026-10-21, and sending went with them: a
+          song is sent from a real post, not from a listen (Miyel). */}
+      {!noting && written && (
         <div className="ses-row-under">
-          {written && (
-            <button type="button" className="ses-row-note" onClick={() => onNote(index)} aria-label={`Notes on ${title}: ${note}. Press to edit`}>
-              {note}
-            </button>
-          )}
-          {onAir && (
-            <div className="ses-row-doors">
-              <button type="button" className="ses-row-offer" onClick={() => onNote(index)}>
-                {offered ? 'Add notes' : 'Edit notes'}
-              </button>
-              {onSend && (
-                <button type="button" className="ses-row-offer" onClick={() => onSend(track)} aria-label={`Send ${title} to somebody`}>
-                  Send track
-                </button>
-              )}
-            </div>
-          )}
+          <button type="button" className="ses-row-note" onClick={e => { caret.current = letterUnder(e); onNote(index); }} aria-label={`Notes on ${title}: ${note}. Press to edit`}>
+            {note}
+          </button>
         </div>
       )}
 
@@ -154,6 +190,7 @@ function TrackRow({
               <textarea
                 ref={field}
                 className="ses-textarea"
+                data-track={index}
                 value={note}
                 onChange={e => onNoteChange(index, e.target.value)}
                 onBlur={onNoteShut}
@@ -167,6 +204,22 @@ function TrackRow({
       )}
     </li>
   );
+}
+
+// Which letter of a written note a press landed on, so the box opens with
+// the cursor there: fixing a word starts with the cursor on the word, and it
+// used to open at the end of the note, a second tap away (Miyel, 2026-10-17:
+// "it's hard to highlight to fix the spelling of a word"). The note on the
+// row is the note's text and nothing else, so a place in it is a place in
+// the field. Null for a press with no point — a key — which opens at the end.
+function letterUnder(e) {
+  const box = e.currentTarget;
+  if (!e.clientX && !e.clientY) return null;
+  const range = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+  if (range && box.contains(range.startContainer)) return range.startOffset;
+  const spot = document.caretPositionFromPoint?.(e.clientX, e.clientY);
+  if (spot && box.contains(spot.offsetNode)) return spot.offset;
+  return null;
 }
 
 export default memo(TrackRow);

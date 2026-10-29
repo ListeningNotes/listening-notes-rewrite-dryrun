@@ -20,10 +20,17 @@
 // The session secret is the exception: the environment wins there, because
 // changing it signs everybody out and a copy that set one on purpose should
 // not be signed out by a row it did not know existed.
+//
+// On a deployment that hosts many journals the environment speaks for none
+// of them (library/hosting_directory.js, deploymentSetting): one keeper's
+// password, signing key or AI key in the deployment's settings would open,
+// or pay for, every journal on it. Each hosted journal's are in its own
+// vault and nowhere else.
 
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomInt, scrypt as scryptCallback, timingSafeEqual, createHmac } from 'node:crypto';
 import { promisify } from 'node:util';
 import database from './database_connection.js';
+import { deploymentSetting, memoryOf } from './hosting_directory.js';
 
 const scrypt = promisify(scryptCallback);
 
@@ -69,6 +76,27 @@ export async function save_secrets(fields) {
   );
 }
 
+// ── The claim, inside somebody else's transaction, 2026-10-08 ─────────────
+// What the setup claim writes here — the password, and the end of the claim
+// code and the window — for a journal brought in rather than started
+// (app/api/restore). There it rides the restore's own transaction, so the
+// journal and the claim land together or not at all: a journal brought in
+// and claimed with no password would let nobody in. `query` takes (text,
+// params), as library/whole_journal.mjs's callers do; the SQL stays here,
+// with the rest of the vault's.
+export async function seal_claim(query, password_hash) {
+  await query(
+    `INSERT INTO secrets (id, password_hash, claim_code, setup_open_until)
+     VALUES (1, $1, NULL, NULL)
+     ON CONFLICT (id) DO UPDATE SET
+       password_hash = EXCLUDED.password_hash,
+       claim_code = NULL,
+       setup_open_until = NULL,
+       updated_at = now()`,
+    [password_hash],
+  );
+}
+
 // ── The API key ───────────────────────────────────────────────────────────
 // Database, then environment. Null when neither has one. There were two until
 // 2026-09-16; `lastfmKey()` went with Last.fm, and it had already stopped
@@ -76,7 +104,7 @@ export async function save_secrets(fields) {
 // own narrow reader.
 export async function anthropicKey() {
   const { anthropic_key } = await pull_secrets();
-  return anthropic_key || process.env.ANTHROPIC_API_KEY || null;
+  return anthropic_key || deploymentSetting('ANTHROPIC_API_KEY') || null;
 }
 
 // ── The signing key ───────────────────────────────────────────────────────
@@ -87,14 +115,20 @@ export async function anthropicKey() {
 // Two instances starting at once could both find nothing and both mint one.
 // The COALESCE in the upsert makes the first write win and hands the second
 // instance the first one's value, so every instance signs with the same key.
-let cachedSecret = null;
+//
+// Kept per journal, 2026-10-20: on a deployment that hosts many, one journal's
+// key handed to another would let a wristband from the one open the other.
+const cachedSecrets = new Map();
 
 export async function sessionSecret() {
-  if (cachedSecret) return cachedSecret;
-  const fromEnv = process.env.SESSION_SECRET;
+  const whose = await memoryOf();
+  const kept = cachedSecrets.get(whose);
+  if (kept) return kept;
+  const fromEnv = deploymentSetting('SESSION_SECRET');
   if (fromEnv) {
-    cachedSecret = new TextEncoder().encode(fromEnv);
-    return cachedSecret;
+    const secret = new TextEncoder().encode(fromEnv);
+    cachedSecrets.set(whose, secret);
+    return secret;
   }
   const minted = randomBytes(32).toString('base64');
   const [row] = await database`
@@ -102,8 +136,25 @@ export async function sessionSecret() {
     ON CONFLICT (id) DO UPDATE SET
       session_secret = COALESCE(secrets.session_secret, EXCLUDED.session_secret)
     RETURNING session_secret`;
-  cachedSecret = new TextEncoder().encode(row.session_secret);
-  return cachedSecret;
+  const secret = new TextEncoder().encode(row.session_secret);
+  cachedSecrets.set(whose, secret);
+  return secret;
+}
+
+// ── The directory's code for a journal, 2026-10-07 ─────────────────────────
+// What the registry issues a journal that asks to be listed, for it to serve
+// at /api/public/listing so the registry can see the address is theirs. Made
+// from the session secret and the address rather than kept, so asking writes
+// nothing until the code has come back, and the same address is always issued
+// the same code. Not itself a secret once issued: the journal serves it to
+// anybody while it is listed, which is why taking a journal off asks for more
+// than the code (app/api/directory/listings/route.js).
+export async function directoryCode(address) {
+  const key = await sessionSecret();
+  return createHmac('sha256', Buffer.from(key))
+    .update(`directory:${address}`)
+    .digest('base64url')
+    .slice(0, 22);
 }
 
 // ── The password ──────────────────────────────────────────────────────────
@@ -134,7 +185,7 @@ export async function verifyPassword(password, stored) {
 export async function passwordSource() {
   const { password_hash } = await pull_secrets();
   if (password_hash) return 'journal';
-  if (process.env.SESSION_PASSWORD) return 'environment';
+  if (deploymentSetting('SESSION_PASSWORD')) return 'environment';
   return null;
 }
 
@@ -150,7 +201,7 @@ export async function passwordSource() {
 // 1/I/l, because it is read off a screen and typed back in.
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
-function mintClaimCode() {
+export function mintClaimCode() {
   const bytes = randomBytes(8);
   const chars = Array.from(bytes, b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
   return `${chars.slice(0, 4)}-${chars.slice(4)}`;
@@ -213,6 +264,66 @@ export async function claimCodeMatches(given) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+// ── The spare key, 2026-10-20 ─────────────────────────────────────────────
+// The floor (Miyel's brief, passkeys): the one way back into a journal when
+// every device that held a key is gone and the password with it, and the
+// only one on a journal that never had a password. Sixteen characters from
+// the claim code's alphabet, in fours (her pick over six words), drawn
+// without the modulo's lean; shown once when made and kept here only as a
+// hash, the password's kind. It opens the door once (her pick): the sign-in
+// spends it in the same statement that checks it is still there, so two at
+// once cannot both get through. Made again from Your keys while signed in,
+// which retires the one before. Never in pull_secrets, and never in an
+// export, which leaves the vault behind.
+const SPARE_LENGTH = 16;
+
+export function tidySpareKey(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+// Makes a new spare key, retiring any before it, and returns it in fours for
+// the one time it is shown.
+export async function makeSpareKey() {
+  const chars = Array.from({ length: SPARE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
+  const hash = await hashPassword(chars);
+  await database`
+    INSERT INTO secrets (id, spare_key_hash, spare_key_made_at, spare_key_used_at)
+    VALUES (1, ${hash}, now(), NULL)
+    ON CONFLICT (id) DO UPDATE SET
+      spare_key_hash = EXCLUDED.spare_key_hash,
+      spare_key_made_at = EXCLUDED.spare_key_made_at,
+      spare_key_used_at = NULL`;
+  return chars.match(/.{4}/g).join('-');
+}
+
+// What Your keys and the lock may know: whether one is ready, when it was
+// made, and when the last one was used. Never the hash.
+export async function spareKeyState() {
+  const [row] = await database`
+    SELECT spare_key_hash IS NOT NULL AS ready, spare_key_made_at, spare_key_used_at
+    FROM secrets WHERE id = 1`;
+  return {
+    ready: row?.ready === true,
+    made_at: row?.spare_key_made_at || null,
+    used_at: row?.spare_key_used_at || null,
+  };
+}
+
+// True when the key given is the one kept, which is then spent. A key that
+// matched but was spent by another sign-in a moment before is refused.
+export async function spendSpareKey(given) {
+  const typed = tidySpareKey(given);
+  if (typed.length !== SPARE_LENGTH) return false;
+  const [row] = await database`SELECT spare_key_hash FROM secrets WHERE id = 1`;
+  const hash = row?.spare_key_hash;
+  if (!hash || !(await verifyPassword(typed, hash))) return false;
+  const spent = await database`
+    UPDATE secrets SET spare_key_hash = NULL, spare_key_used_at = now()
+    WHERE id = 1 AND spare_key_hash = ${hash}
+    RETURNING id`;
+  return spent.length > 0;
+}
+
 // What the owner's settings page is allowed to know: whether each thing is
 // set, where it came from, and the tail of a key so two can be told apart.
 // Never the value.
@@ -221,9 +332,9 @@ export async function describe_secrets() {
   const tail = v => (v ? `…${String(v).slice(-4)}` : null);
   return {
     password: await passwordSource(),
-    session_secret: process.env.SESSION_SECRET ? 'environment' : row.session_secret ? 'journal' : null,
+    session_secret: deploymentSetting('SESSION_SECRET') ? 'environment' : row.session_secret ? 'journal' : null,
     anthropic_key: row.anthropic_key
       ? { source: 'journal', tail: tail(row.anthropic_key) }
-      : process.env.ANTHROPIC_API_KEY ? { source: 'environment', tail: tail(process.env.ANTHROPIC_API_KEY) } : null,
+      : deploymentSetting('ANTHROPIC_API_KEY') ? { source: 'environment', tail: tail(deploymentSetting('ANTHROPIC_API_KEY')) } : null,
   };
 }

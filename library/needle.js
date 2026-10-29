@@ -14,6 +14,7 @@
 // touches a notes column.
 import database from './database_connection.js';
 import { sizedAlbumArt } from './music_data_api.js';
+import { NoJournalHere } from './hosting_directory.js';
 
 // How long a listen can sit untouched before the needle lifts itself.
 //
@@ -57,7 +58,7 @@ export const sameRecord = text => String(text ?? '').trim().toLowerCase();
 export async function pull_needle() {
   try {
     const [row] = await database`
-      SELECT album, artist, album_art, track
+      SELECT album, artist, album_art, track, updated_at
       FROM needle
       WHERE id = 1
         AND ended_at IS NULL
@@ -69,8 +70,15 @@ export async function pull_needle() {
       artist: row.artist || '',
       art: sizedAlbumArt(row.album_art || '', TILE_PX),
       track: String(row.track || '').trim(),
+      // When the needle last moved. The public beacon does not send it
+      // while a listen is open (a last-seen to the second, 2026-10-07); it
+      // is here for the keeper's own screens, should one want it.
+      at: row.updated_at ? new Date(row.updated_at).toISOString() : null,
     };
-  } catch {
+  } catch (error) {
+    // A bad minute reads as nothing playing; an address with no journal is
+    // not a journal with nothing playing, and goes on to say so (2026-10-21).
+    if (error instanceof NoJournalHere) throw error;
     return null;
   }
 }
@@ -241,10 +249,14 @@ export async function pull_recent_listens() {
         // than falling back to the album title — which loses the one thing
         // that said where in the record you had got to.
         track: String(row.track || '').trim(),
+        // When it was sat with, for the beacon's `at` (2026-10-06): a
+        // friend's room says "logged Voodoo, 2 hours ago" from this.
+        at: row.at ? new Date(row.at).toISOString() : null,
       });
     }
     return listens;
-  } catch {
+  } catch (error) {
+    if (error instanceof NoJournalHere) throw error;
     return [];
   }
 }

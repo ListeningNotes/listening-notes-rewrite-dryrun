@@ -22,9 +22,10 @@
 
 import { pressCoverCode } from '@/library/cover_code';
 import { mayKnock, tooSoon, whoIsKnocking } from '@/library/doorman';
+import { answerNoJournal } from '@/library/hosting_directory';
 
 export async function GET(request, { params }) {
-  const knock = mayKnock('cover', whoIsKnocking(request));
+  const knock = await mayKnock('cover', whoIsKnocking(request));
   if (!knock.allowed) return tooSoon(knock.retryAfter);
 
   const { slug } = await params;
@@ -43,6 +44,8 @@ export async function GET(request, { params }) {
       },
     });
   } catch (error) {
+    const nowhere = answerNoJournal(error);
+    if (nowhere) return nowhere;
     console.error('[cover code]', slug, error?.message || error);
     return new Response('No code', { status: 500 });
   }

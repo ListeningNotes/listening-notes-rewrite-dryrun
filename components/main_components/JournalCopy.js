@@ -26,14 +26,26 @@
 // desk means by keeping a copy.
 //
 // ── What is in it ─────────────────────────────────────────────────────────
-// Every table but the vault (app/api/export/route.js): the password and the
-// key that signs you in never leave in a file, because a file travels. The
+// Every table but the vault and the keyring (app/api/export/route.js): the
+// password and the key that signs you in never leave in a file, because a
+// file travels, and a passkey opens nothing anywhere but here. The
 // line after the copy is made says what it holds, so pressing it is seeing
 // a backup rather than trusting one.
+//
+// One zip since 2026-10-08, made here from the export as it arrives
+// (library/carbon_copy.js): that export as journal.json, which puts the
+// journal back, and a page per entry that anybody can read with nothing
+// installed — Miyel's pick of one thing to keep over two.
 
 'use client';
 
 import { useState } from 'react';
+import { carbon_copy } from '../../library/carbon_copy';
+
+// Said to the page once a copy is made, 2026-10-20: the export has taken the
+// letter asking for one off the server (library/whole_journal.mjs), and the
+// inbox takes it off the screen when it hears this.
+export const COPY_MADE = 'ln-copy-made';
 
 export default function JournalCopy() {
   const [copy, setCopy] = useState(null);
@@ -51,17 +63,19 @@ export default function JournalCopy() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Your journal could not be copied. Try again.');
       }
-      const blob = await res.blob();
-      const tables = JSON.parse(await blob.text()).tables || {};
-      // The name the export gives itself, so a copy made here and one
-      // downloaded from the address are called the same thing.
-      const name = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'journal.json';
-      const file = new File([blob], name, { type: 'application/json' });
+      const text = await res.text();
+      const journal = JSON.parse(text);
+      const tables = journal.tables || {};
+      // The name the export gives itself, dated, as a zip — so a copy made
+      // here and the file at the address share a name but for what they are.
+      const name = (res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'journal.json')
+        .replace(/\.json$/, '.zip');
+      const file = new File([carbon_copy(text, journal)], name, { type: 'application/zip' });
       const entries = tables.entries?.length ?? 0;
       const people = tables.people?.length ?? 0;
-      const size = blob.size < 1024 * 1024
-        ? `${Math.max(1, Math.round(blob.size / 1024))} KB`
-        : `${(blob.size / 1024 / 1024).toFixed(1)} MB`;
+      const size = file.size < 1024 * 1024
+        ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+        : `${(file.size / 1024 / 1024).toFixed(1)} MB`;
       setCopy({
         file,
         // A finger, and a share sheet that will take this file: a phone.
@@ -70,6 +84,7 @@ export default function JournalCopy() {
         share: navigator.maxTouchPoints > 0 && Boolean(navigator.canShare?.({ files: [file] })),
         said: `Ready — ${entries} ${entries === 1 ? 'entry' : 'entries'}, ${people} ${people === 1 ? 'person' : 'people'} · ${size}`,
       });
+      window.dispatchEvent(new Event(COPY_MADE));
     } catch (error) {
       setTrouble(error?.message || 'Your journal could not be copied. Try again.');
     }
@@ -102,13 +117,18 @@ export default function JournalCopy() {
     <>
       <p className="st-note">
         Everything you’ve written, your card and your address book, in one
-        file — email it to yourself, or keep it somewhere safe. Your password
-        isn’t in it.
+        file, with a page for every entry you can read anywhere. Email it to
+        yourself, or keep it somewhere safe. Your password isn’t in it.
       </p>
       <div className="st-foot">
+        {/* Save, on a phone and on a computer alike (Miyel, 2026-10-20: "save
+            not share", and then "save on computer too"): keeping the copy is
+            what the press is for, and Save is the printer's word for the same
+            two presses (PrintBar.js). A phone's Save is the share sheet, a
+            computer's is Downloads. */}
         {copy ? (
           <button type="button" className="st-save ln-word ln-word--on" onClick={handOver}>
-            {copy.share ? 'Share' : 'Download'}
+            Save
           </button>
         ) : (
           <button type="button" className="st-save ln-word ln-word--on" onClick={makeCopy} disabled={busy}>

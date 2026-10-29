@@ -10,19 +10,40 @@ the keys that hold the thing together.
 Two ways, because they answer different questions.
 
 **A button — Settings → Back up your journal.** Press **Make a copy** and your
-whole journal is gathered into one JSON file: every table the database has —
-the entries and their notes, the settings, the messages, the address book, the
-sends, the waves and what came back — and the page says how many entries and
-people it holds. Then **Share** on a phone hands it to the share sheet (Mail,
-Save to Files, AirDrop), and **Download** on a computer puts it in Downloads.
-No setup, nothing to configure, works on any copy of this software. The same
-file is at `/api/export` for anyone who would rather use the address. It is
-owner-only — it hands over unpublished drafts, the messages in the inbox,
-the address book, and the return addresses people left with submissions.
+whole journal is gathered into one zip, and the page says how many entries and
+people it holds. Then **Save**: on a phone it hands the copy to the share
+sheet (Mail, Save to Files, AirDrop), and on a computer it puts it in
+Downloads.
+No setup, nothing to configure, works on any copy of this software. Inside:
+
+- **`entries/`** — a page for every entry, in plain text (Markdown), named by
+  the day it was posted. Each says what the entry page says — the record, the
+  stars and marks, who put you onto it, the note, every track with its own —
+  and opens in Notes, TextEdit, Files or any notes app, with nothing
+  installed. This is your writing readable without this software.
+- **`journal.json`** — every table the database has: the entries and their
+  notes, the settings, the messages, the address book, the sends, the waves
+  and what came back. This is what puts a journal back (below).
+- **`Read me.txt`** — what the other two are, for whoever opens the folder.
+
+`journal.json` alone is at `/api/export` for anyone who would rather use the
+address. Both are owner-only — they hand over unpublished drafts, the
+messages in the inbox, the address book, and the return addresses people
+left with submissions.
+
+**The journal asks for one.** When it has writing no copy holds, sixty days
+after the last copy — or after its first entry, when it knows of none — a
+journal puts a letter of its own at the top of its inbox asking for a copy,
+with a **Make a copy** door to this button. It asks once: dismissed, it
+waits another sixty days. Making a copy, here or with the nightly backup
+below, takes it away. Each copy remembers the moment it was made, so a
+journal brought back from one knows it has one.
 
 **It never carries the `secrets` table** — the password and the key that signs
 you in. A download goes wherever downloads go, and whoever held that key could
-sign in as you without the password. The file says what it left out.
+sign in as you without the password. Nor the keyring, your passkeys: each
+opens only the address it was made at, so in a journal brought somewhere new
+it would open nothing. The file says what it left out.
 
 **A schedule, if you want one.** The repo ships two scripts:
 
@@ -34,7 +55,9 @@ Writes every table to `$BACKUP_DIR/<timestamp>/` with a copy of `migrations/`
 beside it, keeps the last 30 and prunes the rest. Nothing lists the tables: it
 asks the database each time, so a table added by next month's update is in
 that night's backup without anyone remembering to add it. It prints which
-database it read and writes that into `manifest.json`.
+database it read and writes that into `manifest.json`. Each run counts as a
+copy — it writes down when it was made, and nothing else, in the journal it
+reads — so a journal backed up every night is never asked for one.
 
 **The backup does carry `secrets`**, so a restore from it brings your password
 back with your writing — and the folder holds the same keys your `.env.local`
@@ -53,7 +76,8 @@ npm run restore -- <path-to-a-backup>
 ```
 
 Prints what it would do and changes nothing. Add `--yes` to actually restore.
-It reads a downloaded export file just as happily as a backup folder, old ones
+It reads the zip from Make a copy — as it came, or unzipped and zipped again —
+just as happily as a backup folder or a bare `journal.json`, old ones
 included. What it does:
 
 - **Empties every table the file holds, and refills it.** It is a restore, not
@@ -79,13 +103,25 @@ Without `DATABASE_URL` in front, it restores into the database in `.env.local`
 — for the copy this was written on, that is the live journal. Read the
 `target:` line of the dry run before adding `--yes`.
 
+**Bringing your journal into a new copy — no terminal.** A copy nobody has
+claimed yet opens setup on two choices: **Start a new journal** or **Bring
+your journal**. Choose the second, pick the zip from Make a copy, check the
+line that says whose journal it is and how much is in it, and choose a
+password. One request later the copy is yours, with everything in it: your
+writing, your card, your address book and your inbox. The copy keeps its own
+address and signing key, and lists itself on the Board at its new address
+the first time it is opened, if your journal was on the Board. Only a copy
+nobody has claimed can be brought into: putting a file over a journal
+somebody keeps is the terminal's job, below, with its dry run in front.
+
 **Restoring into a brand-new database** — your Neon project is gone and you
 have made another:
 
 1. Point the copy at the new database (in Vercel: Settings → Environment
    Variables → `DATABASE_URL`) and redeploy. It builds its own tables.
-2. Set it up as if it were new, choosing a password — an export does not carry
-   your old one.
+2. Open it and choose **Bring your journal** — or, from a terminal, set it up
+   as if it were new, choosing a password (an export does not carry your old
+   one), and then:
 3. Restore into it: `DATABASE_URL='…the new one…' npm run restore -- <file> --yes`.
 
 Your writing, your card and your address book come back, and the password is
@@ -137,6 +173,18 @@ One worth knowing without opening the file:
   if you think it leaked — and whoever has it can sign in as you, which is why
   the export never carries it.
 
+**A lost phone.** Its passkey opens nothing without the phone and its Face
+ID, but take it off anyway: Settings → Your keys, from any device you are
+signed in on, or sign in with your password first. The password always
+stays as a second way in.
+
+**The spare key.** Sixteen letters and numbers, made in Settings → Your keys
+(or when the foot of your card asks) and shown once: write it down or keep
+it in your Passwords app. It opens your journal once, from the lock's *use
+your spare key*, when every device and the password are gone, and the
+sign-in spends it; make a new one straight after. Making a new one retires
+the old. Neither the export nor Bring your journal carries it.
+
 **Locked out.** With the password in the database there is no variable to
 edit. Get in with a wristband you still hold on another device and change it
 in Settings. Failing that:
@@ -149,5 +197,288 @@ in Settings. Failing that:
    variable can go.
 
 **Never do step 2 without step 1.** A journal that is set up and has no
-password lets nobody in at all: the claim code only ever opens a copy nobody
-has claimed, so none is printed and none would be accepted.
+password, no key and no spare key lets nobody in at all: the claim code only
+ever opens a copy nobody has claimed, so none is printed and none would be
+accepted.
+
+**A journal claimed with Face ID** has no password: its ways in are its keys
+and its spare key. With every device and the spare key lost, step 1 alone
+gets back in — set `SESSION_PASSWORD` in Vercel and redeploy; a journal with
+no password in its database takes the variable — and then a key or a
+password can be made in Settings → Your keys.
+
+## A sandbox to try things on
+
+A preview — the copy Vercel builds for each branch pushed to GitHub — can be
+a sandbox: your journal copied to an address of its own, with a database of
+its own, where nothing you do reaches your journal or anybody else's.
+Everything works as it does on your journal, except that nothing leaves: no
+send, wave, reply, Board listing or problem report — each says *Nothing
+leaves the sandbox.* — and a violet glow runs round the edge of the screen,
+with SANDBOX in the top-left corner, so it is never mistaken for the real one.
+
+**Its database must be its own.** Building the site brings the database it
+is pointed at up to date, so a preview pointed at your live database would
+change it. Set it up once:
+
+1. In Neon, make a branch called `sandbox` from your main branch, with its
+   data, and keep it from expiring. It is your journal as it was that moment;
+   Neon's *Reset from parent* brings it up to date later.
+2. In Vercel, Settings → Environment Variables: tick `DATABASE_URL` — and
+   `DATABASE_URL_UNPOOLED`, if you have it — for **Production** only. Then
+   add each again for **Preview** only, with the sandbox branch's connection
+   strings: the pooled one for `DATABASE_URL`, the direct one for
+   `DATABASE_URL_UNPOOLED`.
+3. Add `NEXT_PUBLIC_SANDBOX` with the value `1`, **Preview** only. Never on
+   Production: that journal could then send nothing.
+4. Push a branch called `sandbox`. Its preview keeps one address however
+   often it is pushed, so it can live on a home screen; push to it whatever
+   is being tried.
+
+Vercel locks a preview to the project's owner, so opening one asks you to
+sign in to Vercel once. It also means no other journal can reach a sandbox:
+something that arrives from another journal cannot be tried there.
+
+## Releases and the live site
+
+The canonical deployment — the front door and every journal it hosts,
+its keeper's included — serves the `release` branch, never main (Miyel's
+call, 2026-10-17: "I would like to release and update at the same time for
+hosted and self hosted journals"; switched on 2026-10-20). In Vercel,
+Settings → Environments → Production → Branch Tracking says `release`. A push to main builds a
+preview, which is a sandbox (above), and changes nobody's journal.
+
+Cutting a release is the one act that ships, for everybody at once: hosted
+journals within minutes, self-hosted copies within the hour, through the
+updater they already run.
+
+```bash
+gh release create vX.Y.Z --target main --title X.Y.Z --notes "…"
+git fetch --tags origin
+git push origin 'vX.Y.Z^{commit}:refs/heads/release'
+```
+
+The first tells every copy there is something new; the last moves the live
+site to the same code. Nothing else pushes to `release`.
+
+**A release that went wrong** is undone in two moves, on the keeper's word:
+Vercel → Deployments → the one before → Instant Rollback puts the last good
+site back at once; then `release` goes back to the tag before
+(`git push --force-with-lease origin 'vPREVIOUS^{commit}:refs/heads/release'`),
+so the next release starts from what is live.
+
+## The hosting directory
+
+A deployment that hosts many journals finds each one in the hosting
+directory (`library/hosting_directory.js`): its own Neon database, holding
+each journal's address and the way into its database, sealed with a key
+that lives only in the deployment's settings. Nothing a journal wrote is in
+it. A deployment without `HOSTING_DIRECTORY_URL` is a copy serving one
+journal, and none of this applies.
+
+**Its two settings**, in the deployment's environment variables:
+`HOSTING_DIRECTORY_URL` (the directory database's connection string) and
+`HOSTING_DIRECTORY_KEY` (32 random bytes, base64). On the deployment, the
+`SESSION_SECRET`, `SESSION_PASSWORD` and `ANTHROPIC_API_KEY` variables are
+ignored: each hosted journal's live in its own vault.
+
+**By hand**, on the canonical keeper's Mac, until signup places journals:
+
+```bash
+npm run hosting-directory -- key
+```
+
+makes the key once, keeps it in the Keychain and puts it on the clipboard
+for the deployment's settings.
+
+```bash
+npm run hosting-directory -- remember
+```
+
+keeps the directory's own connection string, copied from Neon first.
+
+```bash
+npm run hosting-directory -- place name.listeningnotes.blog
+```
+
+places a journal: copy its database's connection string from Neon first;
+it is read off the clipboard, checked, and sealed, and never printed.
+`list` shows every address and `check <address>` says whose journal opens
+there.
+
+**If the key is lost or might have been seen**, make a new one and place
+every journal again with it: the old key opens nothing once the deployment
+holds the new one.
+
+**The front door** is the deployment's own address, `HOSTED_DOMAIN` and its
+`www.` — or only the bare domain, once a journal has moved off `www.`
+(below), when `www.` sends the front door's two pages to the bare domain
+(`library/front_door.js`). There somebody starts a journal: Neon makes
+it a database of its own, the front door brings it up to date and places it,
+and the browser goes to the new address's setup with the claim code after a
+`#`, which no server is sent. Its settings: `NEON_API_KEY` (made in Neon's
+console, kept only in the deployment's settings), `NEON_ORG_ID` when Neon
+wants the organisation named, `NEON_REGION` (default `aws-us-east-1`, beside
+Vercel's default function region; a deployment whose functions run in
+Portland, `pdx1`, sets `aws-us-west-2`), and
+`HOSTED_JOURNALS_MOST`, the places (default 100). Each place a request comes
+from can start three journals an hour, and a journal the front door made that
+nobody set up or wrote in is taken down after an hour, and its address is
+free again. Nothing placed by hand is ever taken down, and nothing set up,
+however long it goes without a post.
+
+While it is friends the front door is by invitation: Start a journal makes
+one only for somebody holding a ticket from a keeper's Invite (one journal,
+once, within two weeks; a journal makes twenty a day at most and keeps ten
+waiting). `OPEN_DOOR=1` in the deployment's settings lets anybody start,
+ticket or not; take it away and the door is by invitation again. The
+tickets live beside the journals in the hosting directory, kept as hashes.
+
+### Moving a journal in
+
+A journal that already has a database comes onto the deployment at a new
+address with `move`. The canonical journal is the first: it lived at
+`www.listeningnotes.blog`, the address the front door takes, and every copy
+out there knows that address — address books, sends, waves, messages, the
+Board, problem reports, a link to an entry. So it moves to its keeper's own
+name under the domain, and the old address goes on reaching it, all but its
+home, which is the front door's: the domain belongs to the publication and
+the front door, not to one journal. A card's code is the bare address, so an
+old one opens the front door; the card presses a new one.
+
+**Before**, at the journal's old address: a password chosen in Settings →
+Your keys, or a spare key made there. A password kept in the deployment's
+settings (`SESSION_PASSWORD`) is never read by a deployment that hosts
+journals, and Face ID belongs to the address it was added at, so without one
+of the two nobody could sign in at the new address. The move refuses until
+there is one. An AI key kept in the deployment's settings is not read either;
+type it into Settings after the move.
+
+```bash
+npm run hosting-directory -- move name.listeningnotes.blog
+```
+
+with the journal's connection string on the clipboard, says what it found
+and what it would do, and changes nothing. With `--yes` it places the
+journal at the new address, writes the address into the journal, moves its
+listing on the Board with it when the journal keeps the Board itself, and
+clears its card's code, which the card presses again for the new address the
+first time its keeper opens it signed in. Running it again is harmless.
+
+**`FORWARDING_ADDRESS`**, in the deployment's settings, names where the
+journal that lived at `www.` lives now (`library/hosting_directory.js`,
+`forwarding`). With it, `www.` is that journal's for good: its pages are sent
+on to the new address at the edge (`next.config.mjs`), with the rest of the
+link, and `/api` there is answered by the journal itself, as if asked at its
+new address — a problem report sent from a browser is checked with the
+server first, and that check cannot follow a forward. All but the front
+door's home and `/get`, which go to the bare domain, unless the link carries
+`?from=`, `?as=` or `?add=` and so wants the journal. On the bare domain,
+everything the front door does not answer itself is sent on to the journal
+too, and so is its home when the link carries one of the three. Only the
+forwards from `www.` to the journal are the kind a browser remembers; the
+rest lead to and from the bare domain, where the publication will grow.
+Read when the site is built, so changing it is a redeploy.
+
+**`STUDIO_ADDRESS`**, in the deployment's settings, names the address of
+the studio, `studio.listeningnotes.blog`: the publication's own journal,
+where Listening Notes is made and where the records keepers send for the
+month's prompt are kept, at an address nobody is shown
+(`library/hosting_directory.js`, `studio`; the magazine at the bare domain
+has no sign-in). `studio` is in `KEPT_NAMES`, so nobody can start a journal
+at it and Find a journal never opens it. With it, one door
+at the bare domain — `/api/submissions`, where every copy posts a record for
+the prompt (`PUBLICATION_URL`) — is answered as that journal; the bare
+domain's pages and every other forward stay as they were. That journal takes
+records for the prompt and nothing else. Set it, and set the journal up,
+before the first prompt is sent: without it a record sent to the bare domain
+is forwarded on with everything else. Read when the site is built, so
+changing it is a redeploy.
+
+**The order on the day**, so the journal is never unreachable:
+
+1. Deploy the new code without the hosting settings: it is still a copy
+   serving one journal, exactly as before.
+2. `move … --yes`. The journal now calls itself by its new address, which
+   does not answer yet; it is still read at the old one.
+3. Add the hosting settings (`HOSTING_DIRECTORY_URL`, `HOSTING_DIRECTORY_KEY`,
+   `HOSTED_DOMAIN`, `FORWARDING_ADDRESS`, `NEON_API_KEY`), add
+   `*.listeningnotes.blog` to the project's domains, serve the bare domain
+   itself rather than sending it to `www.`, and redeploy.
+4. Sign in at the new address with the password or the spare key, and add
+   Face ID again in Settings → Your keys.
+
+A copy that knew the old address keeps using it, and everything it asks
+arrives. What it has not learned is that the two addresses are one journal:
+a send or a message from the new address reaches it from an address its
+address book does not hold.
+
+## LN. Admin letters
+
+A letter is the one way to tell keepers something they cannot learn from
+their own journal — an outage, what is new. It lands pinned at the top of
+their inbox as *Message from LN. Admin*, words only, under a fixed line that
+LN. Admin never asks for a password or a spare key. Nothing about it comes
+back: not that it arrived, not that it was read.
+
+**The key** lives only on the canonical keeper's Mac, in the Keychain as
+`ln-letterhead`. Made once:
+
+```bash
+npm run letterhead -- keys
+```
+
+It prints the public half, which belongs in `library/letterhead.js`
+(`CANONICAL_KEY`) and ships in every copy.
+
+**Sending** — to each journal it concerns, by address:
+
+```bash
+npm run letterhead -- send some.journal.example another.example --said "Words."
+```
+
+Each says whether it was kept. A journal keeps one letter: a new one
+replaces the last, and one already dismissed cannot be sent again — send a
+new one. A letter that arrives also replaces the journal's own letter
+asking for a copy, which asks again once yours is dismissed.
+
+**If the key is lost or might have been seen**, make a new one (delete the
+Keychain item, run `keys` again), put the new public half in
+`library/letterhead.js` and release: copies on the updater take it within the
+hour, and from then on the old key's letters are refused. A fork sets
+`LETTERHEAD_KEY` to its own key's public half, or to nothing to take none.
+
+## The directory's job
+
+Only for the copy that keeps the directory (the one every other copy's
+`DIRECTORY_URL` names). Every other copy can skip this section.
+
+The directory shows what each listed journal is logging from a table, and
+the table keeps itself fresh: whenever a Board is read, one round of the job
+runs after the answer has gone. Each round asks only the journals whose turn
+has come — every minute for one seen logging within the hour, every thirty
+minutes otherwise, slower for one that has not been answering — and claims
+them, so two looks a moment apart never ask a journal twice. There is
+nothing to set up, and while nobody looks at a Board nothing runs.
+
+**Optional: a schedule as well.** A Board that should stay fresh while
+nobody is looking can also be refreshed on a clock:
+
+1. In the registry's Vercel project, add an environment variable
+   `CRON_SECRET` with a long random value, and redeploy.
+2. Point a schedule at
+   `https://www.listeningnotes.blog/api/directory/gather` — a `GET`, with the
+   header `Authorization: Bearer <the CRON_SECRET value>`.
+
+The schedule is deliberately not in `vercel.json`: that file goes to every
+copy, and Vercel's free plan refuses a schedule more often than once a day,
+so a per-minute cron there would stop every friend's copy deploying. Any
+outside scheduler that can send a header will do.
+
+To check it by hand:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://www.listeningnotes.blog/api/directory/gather
+```
+
+It answers `{"asked": N}`, how many journals it asked on that run.

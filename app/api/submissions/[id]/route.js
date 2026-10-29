@@ -1,15 +1,16 @@
 // Copyright (C) 2026 Miyel Brown
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // One send: settling it, saying it was already logged (which points it at
-// the post and writes nothing on the post), and naming who it came from.
-// Owner-only, all three.
+// the post and writes nothing on the post), naming who it came from, and
+// marking it seen. Owner-only, all four.
 import {
   update_submission_status, log_submission, name_submission_sender,
-  pull_submissions,
+  pull_submissions, see_submission,
 } from '@/library/submission_actions';
 import database from '@/library/database_connection';
 import { requireWristband } from '@/library/wristband';
 import { tidyJournal } from '@/library/return_address';
+import { close_if_stranger } from '@/library/people_actions';
 
 // 'logged' joins the three that were already here, 2026-09-15. It is not a
 // fourth spelling of 'reviewed': that one is set when a listen is *started*
@@ -61,12 +62,25 @@ export async function PATCH(request, { params }) {
       return Response.json({ submission, submissions });
     }
 
+    // ── Seen, 2026-10-17 ──────────────────────────────────────────────────
+    // Opened in the inbox: its dot goes out, here and on every device. Says
+    // nothing about what becomes of the send (migrations/035).
+    if (body.seen === true) {
+      const seen = await see_submission(id);
+      return Response.json({ ok: true, seen_at: seen?.seen_at ?? null });
+    }
+
     // ── Pending, started, logged, dismissed ───────────────────────────────
     const { status } = body;
     if (!OUTCOMES.includes(status)) {
       return Response.json({ error: 'Invalid status' }, { status: 400 });
     }
     const submission = await update_submission_status(id, status);
+    // Let go from somebody not in the book: their door closes behind it
+    // (2026-10-27, her Friends brief's strangers).
+    if (status === 'dismissed' && submission?.sender_url) {
+      await close_if_stranger(submission.sender_url, submission.submitter_name).catch(() => null);
+    }
     return Response.json({ submission });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

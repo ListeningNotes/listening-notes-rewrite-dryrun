@@ -833,3 +833,419 @@ under every song reads as a test; the horizon must stay in sight; the song on
 air is the one pressed, not the one rated; a note in the middle of a list
 needs a sheet, not a field. The one-screen session is that brief, built once.
 
+---
+
+## The card — three counts, and a pin for records only, 2026-09-15 to 2026-10-01
+
+Reversed 2026-10-01 by Miyel's brief: a Songs count between Albums and the
+flags, and a song pinnable to the card. The current rules are under Structure
+in DECISIONS.md (*Four counts*; *No fourth metric on the card — reversed*; *A
+pinned album, or song*).
+
+**No fourth metric on the card.** The card is a glance and four rows is the
+most a glance holds. Ruled out rather than parked. — What changed was what a
+journal holds: from 2026-09-24 a note about one song is an entry of its own, so
+the journal's total became two numbers. The fourth count went on the one counts
+row rather than on a row of its own, and the glance kept its four rows.
+
+**Three counts, in the three flags' colours, 2026-09-15.** Albums,
+masterpieces, formative — how somebody listens, which a genre list never says,
+and the first work those tokens have had away from a mark on a record. *No
+Favorites count* carried the other half of the argument: "three fits the row
+where four is cramped." Four fit once each count took the width of its own word
+and an equal share of the rest, rather than a quarter each; the words came out
+evenly spaced, which thirds never quite were.
+
+**The pin's search was records only, 2026-09-24.** The pin was the one record
+the card points at, and a track note was a song — it had its own address, not
+a place here. Formative reached the track notes on 2026-09-30 for the reason
+that undid this: a song can be the thing that made you, and so can be the
+thing you hold up.
+
+---
+
+## Ruled out — a directory of journals, until 2026-10-07
+
+The current rule is in DECISIONS.md, The network, *The directory*.
+
+**A directory of journals.** People arrive because somebody handed it to
+them. A directory doesn't solve discovery. (Ruled out from the first draft of
+DECISIONS until Miyel's friends-room brief of 2026-10-06 carried a
+background note and a mock-up for one, and her directory instructions of
+2026-10-07 had it built. The note's answer to this argument: hosting a
+journal and indexing journals are two different jobs, as podcasts show — a
+directory holds pointers, never the journals themselves — and being listed is
+a press, never a default.)
+
+---
+
+## The journal — the folder on the wall, 2026-09-24 to 2026-10-13
+
+Retired 2026-10-13 on Miyel's brief: "no more folder." The current rule is
+under The journal in DECISIONS.md (*Two shapes*).
+
+**Three shapes, by count, drawn like Finder's files, 2026-09-24/25.** A
+card is one album listen; a page, its corner folded over, is one track note
+and no listen; a folder is more than one entry, whatever the mix. Nothing
+else is encoded in the shape — a page in a folder was tried and retired. Flat,
+no shadow or curl, and the folder's tab and the page's flap take the album's
+own colour (Miyel chose it off a sheet of three). The folder was the cover
+lowered behind a tab standing up at the top left, the cover's own colours
+blurred down, after the way files look (Miyel, 2026-09-24: "once you have
+multiple things, you start putting it in a folder; when you have one, you
+just have one laid out there the way it is").
+
+**What replaced it.** A record with any album listen is the full card,
+however many entries it holds; only a record that is nothing but track notes
+keeps the bent flap, however many. The tabs at the foot of an entry
+(FolderFooter) still say what else a record holds, and the code still calls
+the set a folder.
+
+---
+
+## Setting a copy up — the password filed under the address, 2026-09 to 2026-10-21
+
+Current rule: DECISIONS.md → Setting a copy up, *The password is filed under
+the keeper's name*.
+
+**The journal's address was the username, on all three screens that touch
+the password.** Chosen over the keeper's name for two reasons: setup asked for
+the password before the name was set, so the name could not be the same value
+at setup and at sign-in; and a name can change, while the address was the
+same on the day the password was chosen and the day it was typed again.
+
+**Reversed 2026-10-21, on Miyel's call.** Setup now asks for the name first,
+and Bring your journal brings it, so the first reason is gone. The second
+turned out to cut both ways: the night her journal moved to its own name under
+the domain, the address changed and the saved entry no longer matched — a
+move or a custom domain changes an address as surely as a keeper changes a
+name, and either asks the manager once to save the entry again. What decided
+it was what a keeper sees: a saved entry whose website and username are the
+same address reads as a mistake, and she said so on the first save.
+
+
+---
+
+## Structure — the ring on the beacon's rule, 2026-09-20 to 2026-10-21
+
+Current rule: DECISIONS.md → Structure, *One exception, 2026-10-21: the way
+into a listen is the Listen bar*.
+
+**The way into a listen was a circle on the beacon's rule.** It was the one
+thing on that screen you could press and it was reading as a third caption
+under a line. The ring was a hairline of the same weight as the rule it stood
+in the break of, which was the rule making room for a control rather than a
+box drawn round a word. Miyel asked for it by name: "make start a listen feel
+intentional — maybe it can be a circle between the hairlines that looks like
+a button." Its words were *Log a / listen*, and *Resume / listen* with a
+record in hand.
+
+**Reversed 2026-10-21, by her brief *home, the frame, and the session*.** The
+way in became a bar at the foot of home, the session closed, which stage 2
+raises into a sheet. The bar ran the ring's own press. There was no room at
+the foot of one phone screen for the ring, the chevron under it and the bar,
+and asked which should give, she said "everything leaves in exchange for
+this": the ring and the keeper's chevron both went.
+
+---
+
+## The session — two words under the lit track, and leaving ending a listen, 2026-09 to 2026-10-21
+
+Current rules: DECISIONS.md → The session, *A pencil at the end of the lit
+row* and *The session is a sheet raised from the Listen bar*.
+
+**Under a lit track, two words: Add notes and Send track, centred.** A word,
+not the envelope: it was tried beside the heart (it moved the stars), at the
+end of the line, and under the live dot, and none read right. Reversed by her
+brief *home, the frame, and the session*: a word under the row read as a field
+to fill in, and the pencil's slot, kept on every row, is what stops the stars
+moving. Send track went with it, on her call that a song is sent from a real
+post.
+
+**The session opened as a layer over the desk, and leaving it ended it.**
+Leaving put you back on the desk rather than on the beacon, because the cross
+never unmounted, and from 2026-09-16 leaving the screen lifted the needle:
+Miyel shut a listen, watched the beacon go on claiming it, and was right to.
+Reversed the same day the bar arrived: the session is a sheet lowered back
+into the bar without ending, and shutting is Discard, Save draft and Post,
+which still lift it.
+
+---
+
+## Structure — the cross's panes and the band at the foot, 2026-09-15 to 2026-10-22
+
+Current rules: DECISIONS.md → Structure, *The frame: a top row, and the Listen
+bar at the foot*, and the two entries under it.
+
+Reversed by Miyel's answers to the frame questions (2026-10-21/22): the band
+of words at the foot went for a top row, the card stopped being a pane and
+opens from the keeper's face over the page, and the swipe kept Home ↔ People
+↔ Inbox. What stood until then, as it was written:
+
+**Cross navigation.** Beacon is home. Down → journal (only from the beacon).
+Left → the pane that turns: your card, or your desk (the colophon, signed out).
+**Four panes for the keeper, three for everybody else, 2026-09-19.** Card,
+beacon, inbox, friends — and card, beacon, colophon signed out. **A stop on
+the band is a room you stand in, never a corridor you pass through.** The desk
+was a page of doors, which is a corridor: the two rooms worth being in were
+behind it and Settings is a thing you do twice a year. So the rooms took their
+own stops, Settings went to the foot of the card, and the desk left the phone.
+It is still the spine's second page above 769px, where there is no band. What
+follows is the 2026-09-15 version and still holds, apart from the count.
+
+**The cross is three panes on a phone: ID, beacon, desk, 2026-09-15.** You
+land on the beacon. Three was tried before and failed, and neither reason was
+the count — the panes were the same shape as each other and nothing said where
+you were. Both are fixed: every pane is a different kind of thing now (a
+portrait over writing, a record over the journal, a hero over rows), and a band
+at the foot names all three all the time.
+
+It replaced two panes and a button. Two existed because sideways meant two
+things — about you on the left, your tools on the right — and the button that
+resolved it never stopped feeling misplaced wherever it was put, through six
+placements. The gesture that would have replaced the button cannot exist: the
+left edge belongs to the rail (see the four ruled-out approaches above). Three
+is also the more balanced arrangement — the beacon centred, the person on one
+side, their tools on the other. With two, one page always carries more.
+
+The book was an interpretation, not a rule. What it gave this project was an
+object and then the writing underneath, and that survives at any pane count.
+
+**The band at the foot: Card · Beacon · Friends · Inbox, 2026-09-15, widened
+2026-09-19.** **The order is by depth, not by subject:** two of the four panes
+have a second floor and two do not, so they go flat, deep, deep, flat rather
+than letting a single-floor pane sit between the two that go down. Down should
+mean the same thing on neighbouring stops.
+
+A glyph over a word, the pane you are on in ink and the rest
+pale. It is the whole of what is down there — it replaced the dots, the edge
+carets and the mini beacon. Every mark on it is one this site already uses for
+that exact thing, so none has to be learned twice.
+
+Pressing a name moves the rail exactly as a swipe does, because it is the
+visible version of the gesture and not an alternative to it: somebody presses
+Friends once, watches it move, and swipes from then on. That was always what the
+carets were for, and a word does it better than a chevron — a chevron says
+there is something that way and a word says what.
+
+The labels carry the meaning and the glyphs are decoration that has to earn
+17px. If one ever needs explaining, all three go and the words stay. An open
+book for the desk is wrong whatever else is: the book is the journal, and the
+journal is *down* from the beacon, not sideways.
+
+---
+
+## Structure — the beacon's floor, and the wall's bar at the foot, 2026-09 to 2026-10-22
+
+Current rule: DECISIONS.md → Structure, *Home is one page*.
+
+Reversed when the frame arrived (the top row, the Listen bar at the foot of
+every page): home stopped being a beacon floor a screen tall with the wall
+under it, and the wall's bar came up from the foot, which is the Listen
+bar's. As they were written:
+
+**The beacon has the row and no peek, 2026-09-20.** Its screen is full at the
+sizes the mark and the record are drawn at, so a sliver cost a smaller mark
+and tighter air above the cover, and what it bought was forty pixels under the
+wall's own search bar. A feed is rows and forty pixels of a row reads as a
+row; forty pixels of cover under a bar does not. Miyel, on the seam
+being gone: "i don't even mind that it scrolls seamless from top to bottom,
+that was something i wanted to address anyway."
+
+**A visitor's beacon has the peek and the keeper's does not, 2026-09-27.**
+The room the visitor row left goes to the wall's top: signed out, the first
+covers show under the chevron the way the feed shows under the faces. It is
+real now because the wall's bar stands at the foot of the phone screen; on
+the 20th the sliver was bar and band. The keeper's floor stays full and
+unmoved — Miyel's pick over a tease that would have put the mark 30px higher.
+
+What follows is the 2026-09-07 reasoning, which is why there was ever an
+exception: proximity on the long pane argued with the thumb and came off
+2026-08-28; mandatory over three screens and a bit would drag a reader back to
+a screen edge halfway down the wall. The two-floor shape was different while
+it lasted.
+
+**The wall's controls sit at the bottom on a phone.** Where the thumb is, and
+where they do not take the first hundred pixels of covers. Sticky, never
+fixed — the wall lives inside a pane of the cross.
+
+**The wall's bar sits on the floor, edge to edge.** Rounded corners and side
+margins made it a pill floating over the covers; square and full width it is
+the edge of the wall.
+
+---
+
+## The model — hosting ruled out, to 2026-10-20
+
+Reversed 2026-10-20 (Miyel), the night her journal moved onto the hosted deployment. The current rules are under The model and The lock in DECISIONS.md.
+
+**Hosting other people is ruled out.** Every reason to host is solved without a
+server: the feed is pull-based, compare fetches a file, the address book is
+local. Not "never" — just not a future being kept open.
+
+**The blast radius of a compromised copy is one journal.** Every copy checks
+its own password against its own server; there is no shared system to be let
+into and no database of everybody. That is a structural consequence of
+self-hosting, and the thing a hosted service can never offer.
+
+**Why it was reversed.** A post about the journal reached many people and
+almost none could get in: a copy needed a GitHub account, a Vercel account and
+a Neon account, so the door opened only for developers. The reasons above
+still hold — a hosted journal reads feeds, compares and keeps its address book
+exactly as a self-hosted one does; what changed is who runs the server, for
+the people who could not run one.
+
+---
+
+## The network — People as two words, Friends · Board, 2026-10-08 to 2026-10-23
+
+Lives now in DECISIONS.md, The network: *People is one screen*.
+
+**People is one tab: Friends · Board, Miyel's call.** Two words in the bar,
+each with its count: Friends (the book, unchanged) and Board — her word on
+2026-10-08, after Everyone, Commons, All Users, Hub and Keepers. The Board is
+ordered by distance from the viewer: logging right now, a friend away, also
+on your records, being logged everywhere, further out (shuffled). Adding is
+a door on a press; somebody already in the book wears a check.
+
+Her People brief of 2026-10-23 retired it: the two words were the wrong
+question ("whose records is a setting, not a place"), the grid of every face
+had nothing to do with the moment you looked at it, and the Board became the
+search on the wall's line. /directory still draws the Board at its own
+address.
+
+---
+
+## The network — the feed, 2026-09-12 to 2026-10-23
+
+Lives now in DECISIONS.md, The network: *The feed is retired* and *People is
+one screen*.
+
+**The feed is entries, not people, 2026-09-12; built 2026-09-13.** The
+Friends pane's second floor: entry-shaped rows with a small face and a name —
+what the people in the address book logged, not a list of who exists — read
+from each journal's public feed in the browser, never stored. Everyone in the
+book, newest first, forty at most; what came back from a send is an arrival
+in the inbox now, not a view of the feed (2026-09-22). A row offers Compare
+only when it is a record you also have — this album, their rating against
+yours and the two horizons; the track notes stay on the journals until an
+entry can be read across origins. Compare arrives because something
+happened; it is not a place you navigate to.
+
+Retired by her People brief, 2026-10-23: "The feed is homework" — the same
+information as one line saying who logged what, in the opposite posture.
+Its records became People's wall; its match for what came back moved to
+PeopleScreen.js; its compare moved to the inbox.
+
+---
+
+## The network — People's top band, 2026-10-23 to 2026-10-24
+
+Lives now in DECISIONS.md, The network: *People's top is a friend's beacon*.
+
+**People's top band is who is live, or the last thing that happened,
+2026-10-23, her People brief.** One slot of one height: the faces logging
+right now, each with its name and the record under it; when nobody is, one
+line — face, name, what they logged, how long ago. No heading and no word for
+the room: *Quiet* read as a verdict on the person named. A face is there
+because they are live, never for how much they log.
+
+Replaced the next day, Miyel: People "should resemble more of a beacon and
+that is where your friends are", with the faces out from under the scope's
+menu (Who you've added sat at its foot) — info top, wall bottom, the way home
+is. TopBand still draws over the address book's own grid.
+
+---
+
+## The network — People's top and scope, 2026-10-23 to 2026-10-24
+
+Lives now in DECISIONS.md, The network: *People's top is two words, the faces
+and one line* and *People is your friends alone*.
+
+**People's top is a row of faces over a friend's beacon, 2026-10-24, her
+calls.** Info top, wall bottom, as home is, no carry, no hairline. The row:
+Add, every face (live first, then the book's order), See all. A face pressed
+brings their record in, cover left, with the book's doors under it. Add finds
+a name on the Board, takes an address or a code, and invites; See all opens
+the whole book in place. No heading: *Quiet* read as a verdict on a person.
+
+Built and shown the same day. Miyel, on the sandbox: the beacon was more
+than a line needed ("one short line with a very small album thumbnail and
+when it happened"), Add and See all as bubbles read as "three friends", the
+whole thing was busy, and nobody could tell who was open. The doors stayed.
+
+**People is one screen: a friend's beacon, a line with a scope, and a wall,
+2026-10-23, her People brief.** Whose records — Your friends · Your
+records · Everyone's (built, off until the Board is big enough: her call) —
+sits after the search, remembered as the view is; the address book opens
+in place from See all, at the row's end. The wall is home's, so views
+compose with the scope; covers wear their loggers' faces, yours first when
+you have it too (not a gold dot); the search is the Board's (her calls).
+
+Retired the next day with the Board: Miyel asked what Your records even
+showed — the Board's keepers, strangers included, on her own records — and
+whether People should stay strictly for friends. It should; the Board is to
+have a place of its own, with the blog.
+
+## The network — Compare as a page, and the one-way wave, to 2026-10-26
+
+**Compare is not a destination; it is your page about someone,
+2026-09-12; built 2026-09-13.** A face or a name in the feed, or a row in
+the book, opens `/dashboard/people/[id]`: records you both have, rated
+alike, what they sent you and your hit rate with it, then where you agree
+and disagree hardest, what they sent and how it landed, and what only they
+have heard. On your copy, owner-only, which is why it can hold what their
+journal never could. `/compare` is gone with it — a public page that
+compared this journal against a typed address, which the model has no
+place for (everything social is on the visitor's own copy); nobody had the
+URL, so no stub. A printer door on the page waits for the press.
+
+Grown into the friend's journal page on 2026-10-26 (Miyel's Friends
+answers): the same route, now their beacon and wall drawn by this copy, with
+Compare a view opened from its strip.
+
+**One-way: you wave when you add somebody, and at no other time, 2026-09-22.**
+Adding stays silent; the wave is an extra press and Not now is not a lesser
+path. No Wave back (the brief had one; Miyel cut it): adding somebody from
+their wave brings up the same offer, which is the reply. A copy too old to
+take a wave says so and the add stands — it never waits on the wave. A
+second wave replaced the first.
+
+Reversed 2026-10-26 by her Friends answers, which reconcile it: Wave is only
+open once somebody is added, so a wave from a stranger is still answered by
+adding them, and one from a friend by Wave back; one wave per sender is kept
+until it is answered, so adding and removing cannot farm them.
+
+**Pin, 2026-09-20 to 2026-10-26.** Six friends at most pinned above the
+book, three across and larger, in the order they were pinned, and first on
+the timer's thirty. Dropped in her Friends answers: "Drop Pin entirely. Not
+needed."
+
+## The network — People's top as two words, 2026-10-24 to 2026-10-27
+
+**People's top is two words, the faces and one line, 2026-10-24, her
+calls.** + Add · See all in small capitals; every face, live first, then the
+book's order; one line — small cover, name, what, when. A face pressed dims
+the rest, and the book's doors open under its line. A hairline, then the
+wall. Never a beacon drawn large, and never Add or See all as circles ("three
+friends"). No heading: *Quiet* read as a verdict on a person.
+
+Replaced 2026-10-27 by her Friends brief's top: Your friends as a heading
+(not a verdict, so the old worry does not reach it), three glyphs over their
+words, and the row as a drawer in place of See all's book.
+
+## A face's first panel, 2026-10-27
+
+Built and rejected the same day. It read, in DECISIONS:
+
+**A face opens onto what waits from them, 2026-10-27 (her Friends brief).**
+Wrote, Sent you, Waved, Arrived, Moved, each with only its own answers; no
+doors — Compare is on their page, Send on the record, Visit leads the quiet
+line. A message never has Let it go: Keep only (`kept_at`). Arrived passes
+once seen; Moved has no Let it go (the friends round writes it back). New
+clears when the face shuts, so it holds still while open.
+
+Her review: pressing a face opened "two functions that dont overlap well" —
+what they sent beside Visit / Keep private / Remove — and the answers had lost
+their icons. Sends became Listen · Dismiss and waves Wave back · Dismiss; the
+person's own doors went to their page.

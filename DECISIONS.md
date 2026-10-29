@@ -24,13 +24,18 @@ replaced.
 
 ## The model
 
-**Free software, self-hosted, one copy per person.** Nobody pays, ever. Free is
-what keeps API relationships simple — "commercial use" is the trigger clause in
-Apple's terms, and was in Last.fm's while this used them.
+**Free software, one journal per person, hosted or self-hosted.** Nobody pays,
+ever: hosting is capped to what can be run for free (`HOSTED_JOURNALS_MOST`),
+and a copy of your own has no cap. Free is what keeps API relationships
+simple — "commercial use" is the trigger clause in Apple's terms, and was in
+Last.fm's while this used them.
 
-**Hosting other people is ruled out.** Every reason to host is solved without a
-server: the feed is pull-based, compare fetches a file, the address book is
-local. Not "never" — just not a future being kept open.
+**Listening Notes hosts journals, 2026-10-20 (Miyel; ruled out before, see
+the archive).** Each lives at its own address under listeningnotes.blog with
+its own database and lock, and talks to other journals as a self-hosted copy
+does; self-hosting stays, and Make a copy and Bring your journal move a
+journal between the two. Why: the door opened only for developers, and people
+do not mind who serves the site — they want to own their data.
 
 **There is exactly one Listening Notes, at one address.** It is the only place
 the software comes from, which is what makes anything else claiming the name
@@ -62,9 +67,12 @@ home screen there is no address bar, so the code is not hiding the address —
 it is the only form the address takes. Scanning someone's face to reach
 their journal is the native gesture, not a workaround.
 
-**No follower counts, no notifications, no unread badges.** Presence is
-outbound: a journal shows what its keeper is logging, and it never shows who
-is reading. It was opt-in until 2026-09-24 (the archive has why it stopped).
+**No follower counts, no notifications, and no unread badges but one,
+2026-10-20 (Miyel).** Presence is outbound: a journal shows what its keeper
+is logging, and it never shows who is reading. It was opt-in until 2026-09-24
+(the archive has why it stopped). The one mark is a dot, in ink, on the
+keeper's own Inbox while something there is new: never a number, never seen
+by a visitor, never a ping. Green stays the glow of logging now.
 
 **The schema is additive-only, from 2026-09-06.** Migrations add columns and
 tables and never rename or drop them: copies in the wild have to survive every
@@ -93,8 +101,32 @@ were rewritten the same day, while nobody else had a clone.
 
 ## Structure
 
-**Cross navigation.** Beacon is home. Down → journal (only from the beacon).
-Left → the pane that turns: your card, or your desk (the colophon, signed out).
+**The frame: a top row, and the Listen bar at the foot, 2026-10-22, Miyel's
+answers.** The band of words at the foot is gone. The keeper's face sits top
+left and opens the card over the page; Home · People · Inbox sit top right as
+House, Users and Envelope, and only the lit one wears its word, underlined —
+`.ln-word`'s logic. Tap a word or swipe: the swipe is Home ↔ People ↔ Inbox,
+and the card is no longer a stop. The archive has the band and the card pane.
+
+**The face is in the top row on every page, People included, 2026-10-22,
+Miyel's call** — over the People brief's "no face on People": the row keeps
+one shape as you swipe, and the card is always one tap away.
+
+**The keeper's top row has the LN. mark in its middle, 2026-10-23, her
+pick.** Small, its dot green while a listen is open: when the big mark left
+home it took the only sign of a live listen with it ("I do miss it").
+
+**A visitor's top row is their face and the LN. mark, no words, 2026-10-22.**
+People moved to the commons, so there is nothing there for a visitor to press,
+and a visitor has no Listen bar. The Source line and the version still stand
+at the foot of the card.
+
+**The Listen bar is the foot of every page of the keeper's, 2026-10-22** —
+part of the frame, not of home ("follow each page"). Where a page has its own
+bar at the foot — a correction, the print bar, an open sheet — it steps down:
+one row at the foot at a time. Phone first; the desk keeps its two pages until
+she has seen the phone (her call). Not on a friend's page, 2026-10-26: it is
+laid out as their home, and the bar read as a listen on their journal.
 
 **The cross is one route, not two.** A swipe that navigated would unmount the
 pane being left and lose its scroll. The gesture has to be continuous and
@@ -132,6 +164,8 @@ title and what came before — so something has to say there is more; the
 turning pane scrolls and its writing running off the edge is the cue. No mark
 over it: a side caret's mark named a destination worth knowing, and down has
 only one.
+The beacon has none since 2026-10-22 — a keeper's went for the Listen bar
+the day before, and a visitor's when home became one page; the book keeps its.
 
 **The light switch is the beacon's, top right, and nowhere else,
 2026-09-15.** One home for it: the first screen of the journal, where it is
@@ -157,13 +191,20 @@ you are already in it. They are plain uppercase words now, the one that
 commits on a hairline, and no tick or cross beside them. `.ln-word`, shared by
 the four bars that share that band.
 
-**One exception, 2026-09-20: the way into a listen is a circle on the
-beacon's rule.** It is the one thing on that screen you can press and it was
-reading as a third caption under a line. The ring is a hairline of the same
-weight as the rule it stands in the break of, which is the rule making room
-for a control rather than a box drawn round a word. Miyel asked for it by
-name: "make start a listen feel intentional — maybe it can be a circle
-between the hairlines that looks like a button.
+**One exception, 2026-10-21: the way into a listen is the Listen bar.** A
+raised panel at the foot of home, the session closed: *Start a listen* at rest
+(the brief's *Listen* "feels so odd", her pick, 2026-10-22), and a lowered
+listen's cover, track and live dot — the only thing on the site shaped
+like a button, because it is the only thing that starts something; it
+licenses no second one (Miyel's brief, home and the session). The ring and
+the keeper's chevron went for it: "everything leaves in exchange for this."
+The ring of 2026-09-20 is in the archive.
+
+**On a phone the bar floats over the wall, 2026-10-23, Miyel's pick.** A
+panel 14 in from the sides, rounded all round, standing on the home bar's
+line, with the wall running on under it. It was a footer flush to the foot
+for a day (her ask, 2026-10-22), and the strip it stood on read as screen
+lost: "cutting off precious room." Of four mockups she chose this one.
 
 **No loose icons in headers, 2026-09-15.** The mark is centred and the sides
 are for navigation. A single ··· is not a row of tools, it is a door, and it
@@ -206,55 +247,6 @@ three tools and a door reach into it on a 375px phone — so the row becomes the
 menu while the menu is open and the mark comes back when it shuts. The card
 has two tools and 29px to spare and keeps its mark.
 
-**Four panes for the keeper, three for everybody else, 2026-09-19.** Card,
-beacon, inbox, friends — and card, beacon, colophon signed out. **A stop on
-the band is a room you stand in, never a corridor you pass through.** The desk
-was a page of doors, which is a corridor: the two rooms worth being in were
-behind it and Settings is a thing you do twice a year. So the rooms took their
-own stops, Settings went to the foot of the card, and the desk left the phone.
-It is still the spine's second page above 769px, where there is no band. What
-follows is the 2026-09-15 version and still holds, apart from the count.
-
-**The cross is three panes on a phone: ID, beacon, desk, 2026-09-15.** You
-land on the beacon. Three was tried before and failed, and neither reason was
-the count — the panes were the same shape as each other and nothing said where
-you were. Both are fixed: every pane is a different kind of thing now (a
-portrait over writing, a record over the journal, a hero over rows), and a band
-at the foot names all three all the time.
-
-It replaced two panes and a button. Two existed because sideways meant two
-things — about you on the left, your tools on the right — and the button that
-resolved it never stopped feeling misplaced wherever it was put, through six
-placements. The gesture that would have replaced the button cannot exist: the
-left edge belongs to the rail (see the four ruled-out approaches above). Three
-is also the more balanced arrangement — the beacon centred, the person on one
-side, their tools on the other. With two, one page always carries more.
-
-The book was an interpretation, not a rule. What it gave this project was an
-object and then the writing underneath, and that survives at any pane count.
-
-**The band at the foot: Card · Beacon · Friends · Inbox, 2026-09-15, widened
-2026-09-19.** **The order is by depth, not by subject:** two of the four panes
-have a second floor and two do not, so they go flat, deep, deep, flat rather
-than letting a single-floor pane sit between the two that go down. Down should
-mean the same thing on neighbouring stops.
-
-A glyph over a word, the pane you are on in ink and the rest
-pale. It is the whole of what is down there — it replaced the dots, the edge
-carets and the mini beacon. Every mark on it is one this site already uses for
-that exact thing, so none has to be learned twice.
-
-Pressing a name moves the rail exactly as a swipe does, because it is the
-visible version of the gesture and not an alternative to it: somebody presses
-Friends once, watches it move, and swipes from then on. That was always what the
-carets were for, and a word does it better than a chevron — a chevron says
-there is something that way and a word says what.
-
-The labels carry the meaning and the glyphs are decoration that has to earn
-17px. If one ever needs explaining, all three go and the words stay. An open
-book for the desk is wrong whatever else is: the book is the journal, and the
-journal is *down* from the beacon, not sideways.
-
 **A flip and then a slide were built for a two-pane cross and are both gone,
 2026-09-15.** What is worth keeping here is that 0.4s on `cubic-bezier(0.22, 0.61, 0.36, 1)` — the entry layer's arrival — is
 the curve everything on this site moves on, and it is what drives the rail now.
@@ -266,8 +258,15 @@ with a cover, meaning the one pane where something is cut off at a fold rather
 than simply running on. Everything else scrolls, and content running off the
 edge is its own cue.
 
+**Home is one page, 2026-10-22:** the record, then the wall, in one scroll,
+with no chevron, no floors and nothing settling between them — the top row
+and the Listen bar frame it and nothing is cut off at a fold (Miyel: "it
+doesn't really need it anymore"). On a phone the wall's bar sits at the top of
+the wall, stuck under the row, as on a desk: the foot is the Listen bar's.
+
 **A two-floor screen is two stops, and that is not a snap, 2026-09-20.**
-The entry, the beacon and the book all have it. The record
+The entry has it (the beacon did, until home became one page; the book, until
+People became one screen, 2026-10-23: "there is no top and bottom"). The record
 is one thing to look at and what is under it is the next; move at all and
 let go and it finishes the journey, the way you were already going. It acts
 only between those two, never past the second floor, and only with a hand
@@ -288,26 +287,6 @@ The press lands exactly; `scroll-margin-top` on the second floor is what tells
 it where to stop and is load-bearing with no snap in sight. What the snap was
 for survives without it: a first floor one screen tall, a row at the foot of
 it saying what is below, and — on the book, not the beacon — a peek of it.
-**The beacon has the row and no peek, 2026-09-20.** Its screen is full at the
-sizes the mark and the record are drawn at, so a sliver cost a smaller mark
-and tighter air above the cover, and what it bought was forty pixels under the
-wall's own search bar. A feed is rows and forty pixels of a row reads as a
-row; forty pixels of cover under a bar does not. Miyel, on the seam
-being gone: "i don't even mind that it scrolls seamless from top to bottom,
-that was something i wanted to address anyway."
-**A visitor's beacon has the peek and the keeper's does not, 2026-09-27.**
-The room the visitor row left goes to the wall's top: signed out, the first
-covers show under the chevron the way the feed shows under the faces. It is
-real now because the wall's bar stands at the foot of the phone screen; on
-the 20th the sliver was bar and band. The keeper's floor stays full and
-unmoved — Miyel's pick over a tease that would have put the mark 30px higher.
-
-What follows is the 2026-09-07 reasoning, which is why there was ever an
-exception: proximity on the long pane argued with the thumb and came off
-2026-08-28; mandatory over three screens and a bit would drag a reader back to
-a screen edge halfway down the wall. The two-floor shape was different while
-it lasted.
-
 **The large mark is the beacon's alone, 2026-09-15.** It was on every pane at
 one height, so the square under it landed on the same line whichever pane you
 were on — and that reason went with the centred card: there is no third square
@@ -358,24 +337,26 @@ through the journal, which was the pane passing an order it has nothing to do
 with. One layer at a time, too: a cover closes its window before the entry
 opens.
 
-**Masterpieces and Formative open a window; Albums does not, 2026-09-15.** A
-window of covers, no bar and no search — a glance. Albums is the total, and a
-window of all of them would be the wall with its controls taken off, one swipe
-away. Only the two flag counts opening anything also says which of the numbers
-mean something.
+**Masterpieces and Formative open a window; Albums and Songs do not,
+2026-09-15 (Songs 2026-10-01).** A window of covers, no bar and no search — a
+glance. Albums is the total, and a window of all of them would be the wall with
+its controls taken off, one swipe away; the songs are the other total and get
+the same answer. Only the two flag counts opening anything also says which of
+the numbers mean something.
 
 **No Favorites count, 2026-09-15.** Favourite applies to tracks as well as
 albums, so forty favourite tracks across twelve records is not a number you
-can set beside 14 masterpieces. Masterpiece and Formative are album-only,
-which is exactly why they work here — and three fits the row where four is
-cramped.
+can set beside 14 masterpieces. Masterpiece and Formative are counted on
+albums only, which is exactly why they work here.
 
-**Three counts, in the three flags' colours, 2026-09-15.** Albums,
-masterpieces, formative — how somebody listens, which a genre list never says,
-and the first work those tokens have had away from a mark on a record.
-Typeset, not stamped: with a photograph that size above them the photo is the
-flourish. Top genres moved below the fold, one line. A machine-readable line
-was tried and cut — it references a passport rather than being one.
+**Four counts, 2026-10-01: Albums, Songs, Masterpieces, Formative.** The two
+totals in ink, the two flags in their colours — how somebody listens, which a
+genre list never says. Songs is how many track notes the journal holds, left
+off at zero like the flags. Three counts until 2026-10-01, under *no fourth
+metric*; the argument is in the archive. Typeset, not stamped: with a
+photograph that size above them the photo is the flourish. Top genres below
+the fold, one line. A machine-readable line was tried and cut — it references
+a passport rather than being one.
 
 **Down is a cover, not a gesture, 2026-09-15.** Down means cover-then-contents,
 and two things have that shape: the beacon, which is the journal's cover, and
@@ -428,6 +409,18 @@ already carries every colour this journal has, and the art is in the cover
 which went for the same reason: a blurred ground under type is the thing this
 site keeps reaching for and keeps taking back out.
 
+**On a phone the cover's colour washes down the head of home, 2026-10-23,**
+fading by the name, bending the rule above with her yes: one colour, never the
+cover blurred or cropped. A band of the cropped cover was built that day and
+dropped: harsh, it repeated the Listen bar, and the top row got lost on it.
+
+**The bars on the beacon's cover while live are built and retired,
+2026-10-23, her call** — a visitor watching them could anticipate the score,
+and the song on the beacon already says where a listen is. The drawing stays
+(ListeningBeacon, `.beacon-floor`); the ratings never leave the listen, and no
+column holds them. Turning them on is a migration and the writes (cover-listen,
+53cf70cb).
+
 **Prompts replace the free-text bio.** Nine openings in `library/bioprompt.js`;
 a keeper answers three, one line each, and the answer completes the sentence —
 `I can never skip — Voodoo, side two`. A blank box is a hard question badly
@@ -452,11 +445,15 @@ prompt says what they would claim; the gap is the interesting part.
 and that is deliberately the later decision.** Easier to add than to take
 away once people have filled it in.
 
-**A pinned album goes on the card.** One entry from the owner's own journal,
-shown as art, tapping through to it: the only image besides the portrait and
-the thing that stops the card reading as all type. Below the name and
-metrics, smaller than the portrait — the person is the subject and the record
-is what they are pointing at. No label; art under a name says what it is.
+**A pinned album, or song, goes on the card (song 2026-10-01).** One entry
+from the owner's own journal, shown as art, tapping through to it: the only
+image besides the portrait and the thing that stops the card reading as all
+type. A track note pins as readily as a record — a song can be the thing
+somebody is pointing at, which is why Formative reached it the day before —
+and wears its folded corner, the song over `album · artist`. Below the name
+and metrics, smaller than the portrait — the person is the subject and the
+record is what they are pointing at. No label; art under a name says what it
+is.
 
 **The pin is set from the card, behind the pencil, through a search sheet,
 2026-08-28.** It is a settings field, so it is edited with the other card
@@ -475,26 +472,21 @@ fixed strip on every page pointing at places already reachable is 56px spent.
 the target. Only while the pane is scrolled: at the top there is nothing to go
 back to, and a dead tap zone across the cover is worse than none.
 
-**The wall's bar sits on the floor, edge to edge.** Rounded corners and side
-margins made it a pill floating over the covers; square and full width it is
-the edge of the wall.
-
 **Sideways is a decision made at the top of a pane.** The side controls go
 away once a pane is scrolled: down in the wall or the reading, the only thing
 worth offering is more of what you are in. The swipe itself is untouched —
 hiding a control is a hint; disabling a gesture halfway down reads as broken.
 
-**Fifty covers to a page.** Past that you are scrolling rather than looking.
-Counted on the filtered set, so one artist inside three hundred records gives
-you their four on one page.
+**Fifty covers at a time, and fifty more before you reach the foot,
+2026-10-23** (Miyel: pages became "an infinite scroll", a reload back to the
+first fifty). The pages never saved a download: the wall is handed every
+record's summary and a cover loads near the screen. Past fifty you are
+scrolling rather than looking — still true; the sticking band heading is the
+answer, not a page. A new view draws from fifty again, at the wall's start.
 
 **Nothing sits at the foot of the wall.** The foot of the archive is where
 somebody has finished looking, and three links to elsewhere is the site
 asking them to leave.
-
-**The wall's controls sit at the bottom on a phone.** Where the thumb is, and
-where they do not take the first hundred pixels of covers. Sticky, never
-fixed — the wall lives inside a pane of the cross.
 
 **The beacon captions itself, 2026-09-07, on Miyel's call.** One line under
 the art, above the title, naming which of the three states below this is.
@@ -605,8 +597,11 @@ best case. The default is what a beta tester sees. This is exactly how the Last.
 setup screen survived two failed installs, and how Last.fm itself survived a
 week past the point where nobody could connect one.
 
-**No fourth metric on the card.** The card is a glance and four rows is the
-most a glance holds. Ruled out rather than parked.
+**No fourth metric on the card — reversed 2026-10-01, for Songs.** The rule
+was that four rows is the most a glance holds; a fourth count on the counts row
+is not a fourth row, and a journal that writes about songs has two totals, not
+one (Structure, *Four counts*). The glance keeps its rows: no new line on the
+card came with it.
 
 **Nothing about writing on the beacon.** The desk is one swipe right and
 carries Start a listen and Messages; the cover was showing the same two
@@ -776,6 +771,13 @@ address (`noteArrival`), so a friend who scanned a `?from=` gift would be
 signed as the giver on their next send — and a giver's own gifts pass on
 their own copy, which is how it would have shipped.
 
+**Give became Invite, 2026-10-21, Miyel's call.** Anyone can start a journal
+at the front door, so a journal is no longer a gift: the code is an
+invitation (a ticket) to the front door's Choose your address, `?invite=`,
+and every `?gift=` link reads the same. The front door names the inviter and
+hands them to setup in the setup link, keeping nothing. Full is full for an
+invite too.
+
 **A journal is handed to you by a person, 2026-09-28.** `/get` draws its
 steps only when the link carries `?gift=`; without one it is two lines and
 the Instagram, with no form, no waiting list and no coming soon. A self-serve
@@ -899,7 +901,11 @@ run forwards is as misleading as one run backwards. (The build-out and the
 
 **The flags are marks, not words, and there are no tags.** Heart, SketchLogo
 and Fingerprint in `--fav`, `--mp` and `--formative`. Worded chips are too
-wide for a strip that has to leave room for an album title. **A sent record
+wide for a strip that has to leave room for an album title. **Fingerprint
+stays, 2026-10-21:** a sprout was printed to cure its smudge at 12px and nine
+other glyphs set beside it, and Miyel kept the fingerprint — heart, diamond
+and a round print are three solid shapes; a sprout or a plant read oblong and
+eco. Don't re-propose a new Formative glyph. **A sent record
 wears an envelope, 2026-09-13**, in faint ink rather than a colour: it says
 where a record came from, not what the keeper thought of it. The same mark
 everywhere the others are drawn — the strip, the feed, the key. **Not
@@ -939,6 +945,13 @@ the other two be subjective and what makes two journals comparable at all.
 Checked before shipping: the rule agreed with all 40 entries, so nothing
 gained or lost the mark.
 
+**On a phone the session's head is her redesign as drawn, 2026-10-23:** the
+cover at the left with the name, artist and stars beside it from its edge,
+the marks under, the writing on the page with no box. Centred words, the
+marks beside the cover and the marks heading a card were each tried that
+evening and dropped ("busy", "disjointed"). Masterpiece stays absent until
+earned. A desk keeps its column.
+
 **Favorite applies to tracks and albums. Masterpiece is album-only.**
 Masterpiece is a full five-star tracklist, which cannot apply to a single
 track. **Formative is an album's or a track note's, 2026-09-30:** a song can
@@ -948,13 +961,22 @@ and no Formative.
 **An album has many listens, numbered.** The number is computed from existing
 entries, never chosen. Entries are never overwritten; a relisten is a new one.
 
+**A record is its title, its artist and its year, 2026-10-13.** The wall
+gathers, the listens are numbered and the tabs at the foot flip on
+`album_key` and the four digits of `year` together: an artist can put out two
+records with one name, and the second was filed as a relisten of the first.
+Accepted with it: a relisten logged from a differently dated pressing stands
+as its own record. Between journals the key is still `album_key` alone.
+
 **A track note is its own entry, about one song, 2026-09-24.** Never a shorter
 album entry and never part of one: `song` beside the record's `album`
 (migration 025). Stars, words, Favorite and Formative — no tracklist, horizon,
 album rating or Masterpiece. The heart was dropped on 2026-09-26 and came
 back with Formative on 2026-09-30 (Miyel: "it just feels right… I think it
 matters"). Its ··· is Edit, Credit, Send, Delete; nothing that counts albums
-counts it — the card's Formative is still albums only. Written or corrected,
+counts it — the card's Formative is still albums only, in the window it
+opens and on the wall's filter too (2026-10-06), and the card's Songs
+(2026-10-01) is the count of them. Written or corrected,
 it takes the album listen's shape. One object doing both is
 one confusing object instead of two clear ones.
 
@@ -971,19 +993,21 @@ opens. The one entry already written that way is fixed by asking its
 keeper. The rule under the brief stands: nothing in a journal changes
 unless its keeper changes it — no update or migration edits an entry.
 
-**Three shapes, by count, drawn like Finder's files, 2026-09-24/25.** A
-card is one album listen; a page, its corner folded over, is one track note
-and no listen; a folder is more than one entry, whatever the mix. Nothing
-else is encoded in the shape — a page in a folder was tried and retired. Flat,
-no shadow or curl, and the folder's tab and the page's flap take the album's
-own colour (Miyel chose it off a sheet of three).
+**Two shapes, 2026-10-13: a card, and a page for a record known only by its
+songs.** A record with an album listen behind it is a card however many
+entries it holds; one with only track notes is a page, its corner folded over,
+however many, flat and in the album's own colour. The folder — a third shape
+for more than one entry, 2026-09-24/25 — is gone (Miyel: "no more folder");
+the tabs at the foot already say what else is in a record. Archive has it.
 
-**A folder opens to an entry and flips, 2026-09-25.** No index and no landing
-screen — the record's own page was built and taken out the same day. The only
-chrome is a band of tabs at the foot (Listen, Listen 2, or the song; the one
-you are on in ink), and the header keeps the mark — dots in its place were
-tried for a day. From the wall it opens on the earliest entry; from anywhere
-else on the one pressed, with only its folder either side. Dates show once.
+**A record with more than one entry opens to one and flips, 2026-09-25.** No
+index and no landing screen — the record's own page was built and taken out
+the same day. The only chrome is a band of tabs at the foot (Listen, Listen 2,
+or the song; the one you are on in ink), and the header keeps the mark — dots
+in its place were tried for a day. From the wall it opens on the earliest
+entry; from anywhere else on the one pressed, with only its record either
+side. Dates show once. The code still calls the set a folder (useFolder,
+FolderFooter): since 2026-10-13 the word names the set, not a shape.
 
 **The journal wall is ordered by a record's first entry, and never reorders,
 2026-09-24.** A second listen or a song marked on a record leaves its tile
@@ -991,6 +1015,39 @@ where it is: the wall is a shelf, not a feed, and its worth is finding your
 first listen where you left it. Recency lives on the beacon, the recents and
 the feed. A sort by latest would be a toggle beside the density control, not
 a new default — parked until it is missed. The reversal is in the archive.
+
+**The wall's views replace Sort, 2026-10-22, Miyel's call.** A filter takes
+records away (genre, year, the marks); a view rearranges all of them. When the
+views are built, Sort leaves the filter sheet and becomes the view: arrows on
+the line, its name beside them for any order but the wall's own (her call,
+same day) — "sort stays in the sheet on a phone" (2026-10-18) holds only
+until then. The home brief's views gain an A–Z, so a record can still be found
+by its name. **A grouped view's headings stick under the line, 2026-10-23,**
+each sliding over the last; pressed, one lists every band to jump to — the
+brief's "the thing that tells you where you are is the thing that moves you".
+The last band or two land only as high as the wall's foot lets them, and the
+heading then names the band before: no room is added at the foot (Miyel).
+
+**The Filters icon stays the way into the filters, 2026-10-23, Miyel's
+call.** The home brief made the count the button ("press the count to
+narrow"); built and tried on the sandbox (branch `count-door`), she kept the
+icon: "61 albums" pressed open beside the bands' own counts was
+"repetitive". The count stays words, and stays off a phone's line.
+
+**By color is a view, read off the covers, never stored, 2026-10-22, Miyel's
+ask.** The page reads Apple's covers; one kept elsewhere is read by the server
+(`/api/entries/[slug]/color`, the saved cover only). White, then one gradient
+of hue, then gray to black — named bands guessed wrong ("I only consider two of
+these orange"). The fun ones sit under the menu's rule: time of day, horizon
+(the shape of the track stars), color, Shuffle. Search grows out of its magnifier.
+
+**The filters drop from the line, on a phone too, 2026-10-22, Miyel's call**
+("make filters match sort"): both at the views menu's compact size ("i
+prefered the size of the sort view"), a list each; the sheet from the foot is
+gone. The views are words, the filters a glyph beside each word: Album, Track,
+the marks and Submission's envelope, then genre folded to one line and the
+year. Nothing was taken out ("I just want it to look better"). The album size
+is the views' (how the wall is shown), under the menu's last hairline.
 
 **Definitions ship as editable defaults, and custom listen types are ruled
 out.** Universal second-person text installs and the owner can edit any of
@@ -1154,9 +1211,16 @@ journal as one file. A schedule needs somewhere to write and something always
 running, neither of which can be handed to a stranger without hosting them —
 so the automatic one never ships and the manual one always does.
 
-**One format, both paths.** `scripts/restore.mjs` reads either the folder or
-the downloaded file. The moment somebody needs a restore is the worst moment
-to learn their backup is the wrong sort.
+**One format, both paths.** `scripts/restore.mjs` reads the folder, the zip
+from Make a copy, or the file inside it. The moment somebody needs a restore
+is the worst moment to learn their backup is the wrong sort.
+
+**Make a copy is one zip: a page per entry anybody can read, beside the
+journal.json that puts it back, 2026-10-08.** Owning your writing means
+reading it with nothing installed, and the JSON is legible only to this
+software; one thing to keep was Miyel's pick over two. The pages say what the
+entry pages say — the same credit rule, so a page passed on never names a
+quiet sender — made in the browser (`library/carbon_copy.js`, no library).
 
 **Nothing lists the tables, 2026-09-23.** The backup, the export and the
 restore ask the database which it has (`library/whole_journal.mjs`), and the
@@ -1169,7 +1233,9 @@ Miyel's call.** Whoever holds the session secret can sign in as the keeper
 without the password. A backup stays on the keeper's machine beside the same
 keys in `.env.local`; a download travels, and no keeper can change the key
 after. The cost: restoring an export into a new database means setting the
-copy up first, with a new password.
+copy up first, with a new password. **The keyring stays out with it,
+2026-10-20:** a passkey opens only the address it was made at, so brought
+somewhere new it opens nothing. The backup takes both.
 
 **Back up your journal is two presses in Settings, 2026-09-23.** Make a copy,
 then hand it over: the share sheet on a phone, Downloads on a computer. The
@@ -1182,36 +1248,208 @@ does (no email anywhere, below).
 empty one, and emptying it would lose the address book to an old backup. The
 ledger is this database's shape, not the journal; written back, it would
 re-run migrations over restored rows. It is read to refuse a newer backup.
+**One exception, 2026-10-08:** a table outside the file that points at one
+it fills, and is already empty, is emptied with them — Postgres refuses
+otherwise, and a table a later migration adds would refuse every older copy.
 
 **The feed is pull-based.** Every copy publishes `/feed.xml`; each copy goes
 and checks. Nobody learns they were read. **One feed** — the two views of
 2026-09-12 retired with the friends brief. **A shelf, not a river:** no
 counts, no badges, no unread state.
 
-**The feed is entries, not people, 2026-09-12; built 2026-09-13.** The
-Friends pane's second floor: entry-shaped rows with a small face and a name —
-what the people in the address book logged, not a list of who exists — read
-from each journal's public feed in the browser, never stored. Everyone in the
-book, newest first, forty at most; what came back from a send is an arrival
-in the inbox now, not a view of the feed (2026-09-22). A row offers Compare
-only when it is a record you also have — this album, their rating against
-yours and the two horizons; the track notes stay on the journals until an
-entry can be read across origins. Compare arrives because something
-happened; it is not a place you navigate to.
+**The feed is retired, 2026-10-23, her People brief.** What the people in
+the book logged is People's wall, read from the same public feeds; the feed
+was "a stack of other people's writing to get through". `/dashboard/feed`
+forwards to the address book, a bookmark being a promise. Compare lives on
+in the inbox, and the Board keeps the marks. The feed's own entry is in the
+archive.
+
+**Friends shows everyone's beacon, fetched through one route rather than ten
+from the browser, 2026-10-06.** `/api/friends/beacons` fans out to the people
+table in parallel with a short per-friend timeout and keeps its answer a
+minute, so a keeper's open tabs cost their friends one round of requests
+rather than forty a minute each. Friends' beacons refresh on a 60-second tier
+rather than the keeper's own 15, because pulling down to refresh — on the
+Friends pane first, every scroller to follow — gives a person a way to demand
+*now* and removes the reason to poll fast. A fetch that fails is `unknown` and leaves the last known
+state standing; a dot is never darkened by somebody else's slow deployment. No
+presence is stored, there is no "last seen", and the number of people
+listening is never shown. The public beacon gained `at` for the quiet line's
+"2 hours ago"; an older copy never sends it and the line then gives no time.
+
+**And it is never rude to other people's hosting, 2026-10-07.** A journal
+that does not answer is asked half as often each time — one minute, two,
+four, eight, ten at most — and at the usual rate again on its first good
+answer, so a copy that is asleep is not asked every minute forever by every
+keeper who has it in their book. The timer asks the first thirty in the
+book's own order; the rest are asked when the whole grid is
+opened and on a pull down, since a book of a hundred would otherwise be a
+hundred fetches a minute, the browser's mistake moved to the server. A pull
+does reach a journal in its quiet spell, once: a press is a person asking.
+The room listens only while its pane is on screen; the last answer stays on
+the faces meanwhile and coming back asks at once.
+
+**Faces in the book are circles, 2026-10-07, Miyel's call.** With the
+friends-room mock-up beside the page: "i do think the pfps should be
+circles." It reverses 2026-09-19, when the faces became the record's rounded
+square on the grounds that a journal is a shelf of records. A person is a
+circle and a record a rounded square, which also tells the two apart in the
+band of cards, where both are drawn. The rest of the site's faces wait on her.
+
+**Friends' top: the line, Your friends, three glyphs and a drawer,
+2026-10-27 (her Friends brief, step two).** Add · Find (past twenty) ·
+Ticket, each a glyph over its word (kept over words alone, her pick). The
+row is five faces that fit, never scrolling sideways; See all under it, the
+caret under the words, or a drag down opens the rest in place. Waiting
+first, then logging, then shuffled — never by name. New under the chin,
+never a count. The stop's word is Friends.
+
+**A face opens onto what waits from them, and only that, 2026-10-27.**
+Sends Listen · Dismiss, waves Wave back · Dismiss (her words), words Reply ·
+Words · Keep, each a glyph over its word; a message is never deleted. Nothing
+about the person: its head goes to their page, where Keep private and Remove
+live, and a face with nothing waiting goes straight there (the first panel's
+two halves "don't overlap well"). New clears when the face shuts.
+
+**Headlines hold what friends did, from their public reads alone,
+2026-10-27.** One sentence per friend logging or logged in a fortnight,
+newest first; never what they sent you, which is the faces'. Nothing that
+never leaves their copy (unfinished listens, sides). A number inside a
+sentence about one evening is description, her answers: "twice before
+noon", never a tally or a ranking.
+
+**New on a friend's record lasts until it scrolls past, 2026-10-27.** A
+fortnight after it was logged at most; it clears when it leaves over the
+top, or — on screen whole — when Friends is left, or a short wall would say
+New for two weeks. A flag in `seen_records`, sent nowhere ("New means I
+haven't seen it").
+
+**Strangers: one thing at a time, thirty days, closed doors, 2026-10-27.**
+Held on the receiving journal's doors, in its database, by the sender's
+address (`arrival_refused`) — never the sender's client, never memory. Let go
+closes the door (`closed_doors`) until they are added; removing is not
+blocking. A friend gets one unanswered send at a time. A refusal says so in
+words, and the sender's copy keeps what they wrote.
+
+**Words: one conversation per record, never a list of them all,
+2026-10-27.** One friend's page holds theirs, record by record. Your side is
+`said_back`, kept from the day it shipped and never backfilled; the page says
+from when (her answers).
+
+**The Inbox is retired and Community is the third stop, 2026-10-27.** Every
+thing in it has a home: a person's things on their face, strangers in the
+row, what is still out under the friend's wall, the LN. Admin letter pinned
+on home, problem reports under Report a problem. `/dashboard/inbox` forwards
+to Friends, which `/dashboard/people` draws on a desk too. Community is the
+Board until its own brief.
+
+**Pin is gone, 2026-10-26, her call ("Not needed").** Nobody in the book
+stands above anybody else; `pinned_at` stays, as every column does, and
+nothing reads it.
+
+**The directory, 2026-10-07, Miyel's call, and no longer ruled out.**
+listeningnotes.blog keeps a table of the journals on the Board — the address,
+the code it proved it with, when, and the last beacon seen. A copy draws the
+Board from DIRECTORY_URL and fetches no beacon itself; it is public, and a
+stranger pressing through to /get is the point. Since 2026-10-08 it keeps
+each listed journal's records too (below); never the writing.
+
+**Counts of the whole community are not counts of a person, 2026-10-07.**
+The Never list's rule is about a number attached to somebody — listens,
+gifts, who added whom, who is reading. The directory may say how many
+journals are listed and how many are logging right now, because neither names
+anybody and neither can be grown. A row is a name and a beacon, never a
+number beside a person (Miyel, amending the rule rather than excepting it).
+
+**Being on the Board is the default, proved by the address, 2026-10-08.**
+Miyel: "on by default for everyone" — every journal already serves a public
+journal and beacon, so the Board publishes nothing new. Said plainly at
+setup; off with one switch in Settings; one note on the Board until it is
+dismissed. The proof is unchanged: a code from the registry's secret, served
+back at /api/public/listing; delisting needs the code and the journal to have
+forgotten it. (Off by default and a press, 2026-10-07, is what this replaced.)
+
+**People is your friends alone, 2026-10-24, her call.** It reads the
+book's feeds, never the Board's list; finding people is the Board's (Add's
+name search and its way there aside). Whose records — Your friends · Your
+records · Everyone's — stood for a day and went: Your records was strangers
+on your own records, which the Board shows itself. The wall is home's; covers
+wear their loggers' faces, yours first when you have it too (not a gold dot).
+
+**A visitor's People holds the Board's public parts, 2026-10-07/08.** Miyel:
+"strangers and visitors can see this page." No Friends, no switch, no checks,
+and nothing ordered around the keeper — a friend away and your records are
+the viewer's own, so a visitor has neither.
+
+**Address books are published, for a friend away, 2026-10-08.** Miyel: "all
+my testers are asking for this, they feel too alone, this will be how they
+find people." /api/public/people gives a name and an address for each person
+in the book who is on the Board themselves — never one added privately,
+nothing while the keeper is off. Two rings only: friends, and theirs; not
+their friends' friends, which is what other people's hosting cannot afford.
+
+**Quotes on the Board are a keeper's own words, 2026-10-08.** Miyel: the
+rule was "about people writing on other people's journals... nobody's words
+about albums or comments, not this." A line from a keeper's own public entry,
+linked to it, may stand on the Board; a visitor's words never do.
+
+**Their note may sit beside yours on your page about them, 2026-10-24** —
+(on their post since 2026-10-28, read with the post; the route stays for
+older copies that ask it) —
+a friend's, or a stranger's off the Board, whose page opens by their address
+(her words the same day: "even if its a stranger").
+Her compare brief: reading what they actually said "is the entire point". It
+is their writing shown in full outside their journal, which the Board's quote
+is not, so it is held to three things: one entry at a time through
+`/api/public/notes/[slug]`, never a list; read live and stored nowhere; their
+face on it and their entry one press away. A quiet entry gives nothing.
+
+**Compare may set your taste beside theirs in numbers, 2026-10-24.** Her
+words: see "at a quick easy glance how you two compare… even if it's a
+stranger." Each side's share of its records by genre, decade or stars, and
+the cards (top genre, Masterpieces on what you share), describe taste; the
+no-counts rule is about a score somebody could grow, and nothing here ranks
+anyone. It stays on that page, the keeper's alone; never a row or the Board.
+
+**The directory keeps each listed journal's records, 2026-10-08.** Titles,
+stars and marks, read from the public feed by the same job — never the
+writing. A quoted line is read from the keeper's own journal by the viewing
+journal's server (below), kept ten minutes, and never goes to the directory.
+Not yet, by the brief: forums, a "most active" view, follower counts.
+
+**The Board reads through one route, 2026-10-08.** Miyel: "keep the fan-out
+behind a single route, the way /api/friends/beacons already is", so what is
+behind it can become one cached crawl on a server "without touching a single
+component". /api/board on every copy is the Board's only source: the first
+screen, search, the keeper's records matched, and the lines (read on demand,
+2.5 s each, back-off, only from journals on the Board). Never a browser crawl.
+
+**Reading the directory is not phone-home, 2026-10-07.** The Board loads
+when People opens, with no press of its own. Miyel: "not what i meant by
+reporting home. dont worry about that here." The rule is about a copy
+reporting on itself — analytics, installs, banners — not reading a list.
+
+**The Board refreshes itself when it is looked at, 2026-10-17.** Miyel: "go
+with option 1", over an outside cron or GitHub's scheduler — nothing to set
+up, nothing runs while nobody looks. After a read of /api/directory, one
+round asks only the journals due (logging within the hour, every minute;
+otherwise every thirty; doubled per failure up to three hours), each claimed
+so two looks never ask one twice. Never a vercel.json cron (every copy's).
 
 **A wave is the second thing one journal may put in another's inbox,
 2026-09-23.** A send was the first and a message is the third (below), and a
 wave carries a name and an address, never words — the route refuses any body
 with more. The
 recipient asks the journal its name and keeps that, not the one handed; a
-second wave replaces the first; Leave it deletes. **Nothing is reported
+second waits on the first (below); Leave it deletes. **Nothing is reported
 back:** a waver never learns what the other copy did.
 
-**One-way: you wave when you add somebody, and at no other time, 2026-09-22.**
-Adding stays silent; the wave is an extra press and Not now is not a lesser
-path. No Wave back (the brief had one; Miyel cut it): adding somebody from
-their wave brings up the same offer, which is the reply. A copy too old to
-take a wave says so and the add stands — it never waits on the wave.
+**Wave once added, and one at a time, 2026-10-26 (Miyel's Friends
+answers).** Adding stays silent, and a friend's page has no Wave (her
+call). A wave from somebody not in the book is answered by adding them,
+one from somebody in it by Wave back. The receiving journal keeps one per
+sender until its keeper lets it go or waves back; a second is kept as
+nothing and answered the same, so the waver still learns nothing.
 **The inbox says "[name] waved" and never "added you"** (Miyel, 2026-09-23):
 the wave is the quiet codeword for "I added you, add me back", and spelling
 it out was offered and turned down.
@@ -1234,12 +1472,19 @@ until then a failed add held the screen. The giver's wave back is what
 teaches the new inbox. Both hellos are chosen; skipping is never mentioned.
 
 **A returned send is an arrival, and this copy keeps it, 2026-09-22.** When
-somebody in the book logs a record this journal put them onto, the feed's
-match hands it to this copy's server and the inbox shows it among the sends —
+somebody in the book logs a record this journal put them onto, the match
+(the feed's, People's since 2026-10-23) hands it to this copy's server and the inbox shows it among the sends —
 "Came back", the dot until opened, no count. A table of its own (`came_back`),
-because a copy keeps no record of what it sends. **The first write of its
+because a copy kept no record of what it sent (it does from 2026-10-15, below). **The first write of its
 kind:** the browser telling its own server what it read on somebody else's
 public journal — within the model, since everything social lives on your copy.
+
+**A copy keeps what it sent, 2026-10-15.** A send made from this copy is
+written to `sent` once the other journal takes it, for the inbox's Sent door
+(Miyel: "waiting to be returned, basically"). It waits until a `came_back`
+row names the same record from the same journal, or until its keeper removes
+it; a send the other keeper archived is never known. No count, no age, no
+reminder, and nothing before that day was kept.
 
 **Everything social lives on the visitor's own copy, 2026-09-12.** Their
 copy holds their addresses and does their comparing; other people's journals
@@ -1267,16 +1512,43 @@ cannot see, and it never learns whether the visitor keeps one; a send that
 carried a journal has a button in the inbox; a card's or a cover's code can
 be scanned. The paste field is the fallback for an address read aloud.
 
-**Compare is not a destination; it is your page about someone,
-2026-09-12; built 2026-09-13.** A face or a name in the feed, or a row in
-the book, opens `/dashboard/people/[id]`: records you both have, rated
-alike, what they sent you and your hit rate with it, then where you agree
-and disagree hardest, what they sent and how it landed, and what only they
-have heard. On your copy, owner-only, which is why it can hold what their
-journal never could. `/compare` is gone with it — a public page that
-compared this journal against a typed address, which the model has no
-place for (everything social is on the visitor's own copy); nobody had the
-URL, so no stub. A printer door on the page waits for the press.
+**A journal that moved says so, and a book changes only on its keeper's
+press, 2026-10-21.** Its keeper puts where it lives now in Settings; its
+beacon says it, visitors are sent on, and a friend's Inbox shows "[name]
+moved" with Update (Miyel's pick). Never written into a book by itself: a
+journal taken over could otherwise move its friends' sends and messages
+anywhere. Never the journal's own address, which is a circle.
+
+**Update carries a move through the journal, never into an entry,
+2026-10-21.** The press changes the friend's address in the Outbox,
+came-back rows, waves, messages and sends with the book, all at once; a
+credit on an entry keeps the address it was sent from. A journal keeps the
+addresses it lived at (`moved_from`, private), so its sends from there are
+still its own when they come back.
+
+**A friend's page is their journal, drawn by yours, 2026-10-26 (Miyel's
+Friends answers).** Visit opens `/dashboard/people/[id]`, laid out as home
+("just like an owners page"): home's row with their face and name, Compare ·
+Added for its rooms, their beacon, the line, their wall — home's components,
+their public rows. "The page is mine, the data is theirs": nothing framed,
+and (since 2026-10-28) their entries open here too. Compare is a view opened in place at the
+top of the page — her pick over a screen of its own, 2026-10-26 ("the way
+you have it designed now is great"); main's versus screen joined it
+2026-10-28, its faces and facts kept above the shared records (her call).
+
+**Compare is two, 2026-10-28, her split: "comparing a listen vs comparing
+with a full person".** The person is Compare on their page: the two of you,
+face to face, the facts, a wall of the records you share. The listen is
+their post (ListenCompare.js): Compare in its top right, where you have the
+record too, sets your listen beside theirs, and a shared record pressed on
+their page opens the post that way — "skipping a button".
+
+**A friend's entry opens inside your journal, 2026-10-28, her ask ("not a
+separate page overlay").** `/dashboard/people/[id]/[slug]` (her name) reads
+it as it opens, on this copy's server, from the public `/api/entries/<slug>`
+any visitor reads, and your entry page draws it in a Bookplate of theirs: no
+keeper's tools, no links into your archive, nothing stored or listed. Words
+written there go through your outbox, kept for Words.
 
 **The page about a person stays on your copy; their journal gets no door
 to it, 2026-09-13.** Considered: their right pane offering "Compare with
@@ -1430,6 +1702,13 @@ Dismiss — a door to the keeper's own entry was built and cut the same day.
 A message that has been answered says *Replied*, first in its small line;
 that is a note to the keeper, and nothing is sent because of it.
 
+**The inbox is drawn from the People page, 2026-10-17, Miyel's pick.**
+Records waiting: a grid of covers four across, one row until See all,
+opening under their row as a face does. The rest: a soft grey mark, who did
+what, and a face, stars or Add at the end — no line under, no dates, no card.
+Inbox · Outbox are words in the bar. A record's dot lasts until a press
+opens it. Overlapping covers were rejected the same evening.
+
 **The way in to an entry is words, once: *Message* and the keeper's name,
 under the album note, 2026-09-29.** Not the comment's bubble, and not an
 envelope, which on an entry means a record somebody sent. Not under each
@@ -1549,10 +1828,27 @@ is cached at the edge for ten seconds and repeat asks never reach the
 database — which is what makes the cost stop growing with the number of
 people watching.
 
-**No banner or message system pushed into copies.** That would require every
-copy to phone home, producing a log of who is running one. A copy asks its
-own server, which reads the public releases at most once a day and says one
-line on the desk when a newer one exists — the only thing it can ever say.
+**No banner pushed into copies, and no copy asks for messages.** Asking would
+require every copy to phone home, producing a log of who is running one. A
+copy asks its own server, which reads the public releases at most once a day
+and says one line on the desk when a newer one exists. The one thing pushed
+is an LN. Admin letter (below): posted to the journals it concerns, by
+address, and nothing comes back.
+
+**LN. Admin letters are sealed, words only, and pushed, 2026-10-20 (Miyel's
+picks).** The messages door is open to anybody, so a letter carries an
+Ed25519 seal from a key that lives only on her Mac — on a server, one
+break-in could write to every journal. Words, no door, no link, under a
+fixed line: LN. Admin never asks for your password or your spare key. One
+pinned at a time; dismissing deletes it; nothing reports back.
+
+**A journal asks for a copy of itself, once, 2026-10-20 (Miyel's brief).**
+Sixty days after its last copy (or first entry, knowing of none), with
+writing since, it writes itself an LN. Admin letter, checked where the Inbox
+dot is decided, never on a timer, and not again for sixty days. Make a copy
+and the nightly backup both count and take it away. Its door, Make a copy,
+is the one a letter has: it is the journal's own; letters that arrive stay
+words only, and go first.
 
 **A copy updates itself once an hour, takes releases and never main, and
 never crosses a major on its own, 2026-09-15.** The `Update this copy`
@@ -1574,21 +1870,26 @@ never reaches that path, so the canonical copy stayed green while every new
 one failed. A run that finds nothing to do now exits green saying *Already up
 to date*, and an empty index is never committed.
 
-**The history was rewritten once, on 2026-09-30, to remove `NOTES.md` and
-`Notes.md`.** They held a working notebook that was never meant to ship, and
-in its last version a third party's email address and four journal addresses —
-the Never list broken in public. Every hash from April 2026 changed and the
-release tags were re-cut on the new commits. Copies made between 27 August and
+**The history was rewritten, on 2026-09-30 and again on 2026-10-01: first
+to remove `NOTES.md` and `Notes.md`, then to placeholder three strings the
+Never list forbids.** The notebook was never meant to ship, and in its last
+version held a third party's email address and four journal addresses; the
+second pass replaced an email address and two people's names that survived
+in comments and commit messages. Every hash from April 2026 changed, twice,
+and the release tags were re-cut on the new commits each time. Copies made between 27 August and
 26 September keep their own copy of the file; the rewrite cleans this
 repository, not what was already handed out. The notebook has lived outside
 the repository since 2026-09-26 and `*.local.md` keeps it there.
 
 **A copy that has updated before joins a rewritten upstream at the release it
-last took, 2026-09-30.** Its history holds the old upstream's commits, so
+last took, 2026-09-30, and files its keeper never changed take upstream's
+version, 2026-10-01.** Its history holds the old upstream's commits, so
 grafting its root alone put the merge's base in March and every file clashed
 — rehearsed, not guessed. The updater grafts the commit its newest update
-merged onto the new commit nearest it by files, and the merge has its true
-base. The history is not to be rewritten again; this is what it cost.
+merged onto the new commit nearest it by files, asked whenever that commit
+is gone upstream; and a file identical to the one the copy was given is not
+the keeper's to keep, so it takes upstream's rather than clashing or keeping
+rewritten-away text. The history is not to be rewritten again.
 
 **The updater link goes through the journal's own domain, 2026-09-30.** A
 link to `github.com` tapped on a phone is swallowed by GitHub's app, which
@@ -1618,7 +1919,41 @@ copy deployed from main shows a number that is true of its code. A release
 is cut when there is something to tell a keeper: it is what makes every desk
 say a newer version exists, one interruption per thing worth saying.
 
+**A preview is a sandbox, and nothing leaves it, 2026-10-17.** Built with
+`NEXT_PUBLIC_SANDBOX` on Preview, beside a database of its own, it refuses
+every send, wave, reply, Board listing and problem report (*Nothing leaves
+the sandbox.*) and glows violet with SANDBOX in the corner (Miyel's). Every
+write leaving a copy lives in library/outbox.js for this; one outside it must
+ask SANDBOX, or a test reaches a real person.
+
 ---
+
+**The front door is a masthead over a record wall, 2026-10-22, Miyel's
+pick of three.** The mark and the two doors at the top; under them the covers
+keepers on the Board logged lately (covers only, never who), edge to edge, in
+staggered columns drifting up. A door opens where it is, never a page of its
+own: both stay, the open one lit, and pressing the other switches; `/get`,
+where invite links point, is Start open. Words never sit on a moving cover,
+nor on a sheet (it read as a pop-up).
+
+**A journal nobody sets up is let go after an hour, 2026-10-22, Miyel.** It
+was a day. The places are few and a name should not be held by somebody who
+will not use it; setup takes minutes. The address is free again at once, and
+its page (or setup, left open) says the setup timed out, with Start again. A
+journal that is set up is never let go, however long it goes without a post.
+
+**The front door is by invitation while it is friends, 2026-10-22, Miyel.**
+Start a journal makes one only on a ticket from a keeper's Invite: one
+journal, once, within two weeks; the ticket says who invited, so an address
+written into a link names nobody. Without one, her words: handed out by
+people who have one. `OPEN_DOOR` opens it to anybody, the day she says.
+
+**The month's prompt is a record from the keeper's own wall, sent on a
+press, 2026-10-22.** An entry already written — its record and writing as
+they stand, read-only, never a blank box or a catalogue — goes to
+listeningnotes.blog, kept by the studio at an address nobody is shown (the
+magazine has no sign-in). The prompt arrives sealed like an LN. Admin
+letter. Say prompt and record, never question and answer (Miyel).
 
 ## Things open in the page, not over it
 
@@ -1679,6 +2014,13 @@ inconsistency the one sheet deletes. A song send carries `submissions.song`
 (migration 026) and an older copy files it as the album. Mid-listen only a
 track is sendable: there is no entry yet, and "hear this now" dies waiting.
 
+**A song send is logged as a track note, 2026-10-06.** Listen on a song send
+opens the note for that song, not the record; the note carries the sender as a
+listen does and settles the send when saved; Resume finds its draft, *already
+logged* offers the song's note, and a credited note is a came-back. A listen
+with the sent track lit was built the same day and refused (Miyel: "it needs
+to send a track send to the track session page") — a song send is a song send.
+
 **The sent state is a letter seen from the front, with no journal address,
 2026-09-26.** The record as a perforated stamp, ON ITS WAY TO, the name, the
 record; no Done, no ×, it holds a beat and leaves on its own. The shape will
@@ -1700,10 +2042,26 @@ send without one, and a record arriving with nothing said about it is a link.
 no accounts, nothing to be here but yourself: a yes/no key to a locked room in
 a building anybody may walk into.
 
-**The blast radius of a compromised copy is one journal.** Every copy checks
-its own password against its own server; there is no shared system to be let
-into and no database of everybody. That is a structural consequence of
-self-hosting, and the thing a hosted service can never offer.
+**The blast radius of a compromised journal is one journal.** Every journal
+checks its own password against its own database, and nobody's sign-in is
+kept anywhere else.
+**A keeper signs in at their own journal's address and nowhere else**
+(Miyel, 2026-10-20: "keep the lock on each journal"). Never through another
+address, the canonical one included: a shared sign-in is one door to every
+journal, and a home-screen app keeps its own sign-in, apart from Safari.
+
+**The wristband is locked to its address and read only from its own pages,
+2026-10-20 (Miyel's picks, learned from Tumblr).** In production the cookie
+is `__Host-ln_session`, which no other address under the same domain can
+plant or replace, and a band is read only off a request from the journal's
+own pages or the address bar (`Sec-Fetch-Site`, else Origin). A route that
+needs a band from anywhere else is the wrong route.
+
+**Every page carries a content security policy, 2026-10-20 (Miyel's pick).**
+Only scripts stamped for that one request run (proxy.js), so a script slipped
+onto a page is refused; styles may be inline, images and fetches come from
+anywhere over https, and nothing may frame a journal. A new outside script,
+frame or font is a change to the policy, made on purpose.
 
 **The way in is the right pane, and nothing on the mark opens it,
 2026-09-02.** The pitch's key when you are out — pressed, the password field
@@ -1719,12 +2077,46 @@ device nobody tested.
 **One password field, in one file.** A second copy is how the first drifted
 out of the shape a password manager can read. Safari needs a real form, a real
 submit, `autocomplete="current-password"` and a username to file the entry
-under — the journal's address, visible, on all three screens that touch the
-password (see Setting a copy up).
+under — the keeper's name, visible, on every screen that touches the password
+(see Setting a copy up).
 
 **Six months on the wristband.** A lock on one person's own room, opened on
 the same two or three devices. Monthly logins are how a password gets weaker.
 The trade is stated: an unlocked phone is dashboard access, and that is accepted.
+
+**Passkeys open the same door, 2026-10-17 (Miyel's brief).** Face ID or its
+like hands out the same wristband the password does; the checking is
+@simplewebauthn's, never written here. The password stays as the second door,
+and the last way into a journal with no password cannot be removed. A key
+opens the exact address it was made at, www. and all, so a move means signing
+in once another way and adding a key there.
+
+**The lock says Unlock, and Face ID is offered where the keeper is,
+2026-10-20 (Miyel's picks).** The lock is a door, the glyph over Unlock (over
+Keeper, and over the sentence beside it); the password sits in a soft well.
+After the password, *Use Face ID next time?* with not now; a keeper already
+signed in, who may not see the lock for months, is asked once at the foot of
+the card — never a sheet that pops up. Not now is kept per device.
+
+**The spare key is sixteen letters and numbers, shown once and good once,
+2026-10-20 (Miyel's picks).** The brief's floor: the way back when every
+device and the password are gone, and the only one a journal without a
+password has. A hash in the vault; the sign-in spends it in the statement
+that checks it. The card's foot asks for one when there is none and when it
+has been used, after Face ID; Your keys holds it beside the password.
+
+**Setup offers Face ID first, and a claim keeps only its own keys,
+2026-10-20 (Miyel's picks).** The password screen is Face ID with *or choose
+a password* under it, for a new journal and a brought one alike; claimed
+with a key, there is no password and the spare key is made next. Anybody
+reaching an unclaimed copy can leave a key on its ring, so the claim names
+the keys it made and the rest are dropped (library/keyring.js, keep_only).
+
+**A wristband says it is one, 2026-10-20.** A band holds `authed: true`, and
+nothing without it passes. Anything else signed with the session secret would
+otherwise be a band; the passkey's challenge cookies are handed to anybody
+who asks, so they are signed with a key derived from the secret, never the
+secret itself.
 
 **Rate limiting is in memory, and the limits it can honestly promise are
 written down.** A managed store needs an account elsewhere most copies will
@@ -1823,6 +2215,13 @@ unclaimed copy, and pressing the picture lands in setup with nothing typed.
 Only at build — a start can be woken by anybody's visit, a build only by the
 owner. Past the window: Redeploy, or the code from the log.
 
+**Bring your journal is setup's second way in, on a copy nobody has
+claimed, 2026-10-08.** Start a new journal or Bring your journal (Miyel's
+words); the zip is read in the browser and said back before anything is
+written, and the copy is claimed inside the restore's own transaction
+(`/api/restore`), so a journal never arrives without a password. The copy
+keeps its key and address; the Board's old code goes, so it lists itself.
+
 **The build migrates too.** `npm run build` runs the migrator before
 `next build`, purely so the claim code reaches the build log. A build that
 cannot reach the database says so and carries on rather than failing.
@@ -1905,10 +2304,14 @@ the Neon step, so tests run in Safari. Ten steps, one or two sentences each.
 **One set, from a phone, 2026-09-22:** the phone/laptop switch is gone —
 the people handed `/get` are holding a phone, and only the pictures differed.
 
-**The password is filed under the journal's address, in a visible field.**
-Managers pair a password with a username and stay silent without one, and
-Safari skips hidden and one-pixel fields. The host, on all three screens that
-touch the password, so the entry saved at setup is the one offered at sign-in.
+**The password is filed under the keeper's name, in a visible field,
+2026-10-21.** Managers pair a password with a username and stay silent without
+one, and Safari skips hidden and one-pixel fields. The keeper's name — the
+address only where none is set — on every screen that touches the password, so
+the entry saved at setup is the one offered at sign-in (usePasswordName). Not
+the address: the entry already carries it as its website, and as the username
+too it read as a mistake (Miyel). The address's reasons are in
+docs/DECISIONS-ARCHIVE.md.
 
 **Links are retired from view.** Not asked at setup, not on the About pane,
 not in Settings. The column stays and `LINKS_SHOWN` in About.js is the whole
@@ -2017,6 +2420,13 @@ cover and it is the listen. No stub for `/dashboard/echo` — the retired-route
 rule. The record on the desk is kept in the browser, so a reload reopens
 where you were.
 
+**Two records with one name are two rows, 2026-10-13.** The picker folds
+pressings of a record into one row by artist and title, and folds only a
+marked edition, or two rows from the same year — a remaster carries the
+original's year. Two plainly titled records from different years stay apart:
+an artist can put out two records called the same thing, and the second
+never reached the list, so a friend could send only the first.
+
 **The Echo framing is dropped throughout.** Less companion, more function:
 find the album, log the listen. The floating nodes assembling into album art
 were beautiful and sat between "I want to log this" and logging it; they are
@@ -2044,24 +2454,23 @@ and its note is a sheet. The strip, the carets, the swipe between tracks and
 the mini beacon header went with it. The reversed entries and the day of
 trials are in the archive; do not bring the screens back a third time.
 
-**An empty note field is closed.** *Add notes* under the track being
-logged until it is pressed; the album note is a box that is always open; the writing
-once there is any; nothing under any other track. The session offers rather
-than asks.
+**An empty note field is closed.** A pencil at the end of the track being
+logged until it is pressed; the album note is a box that is always open; the
+writing once there is any; nothing under any other track. The session offers
+rather than asks.
 
 **A track's note opens under its row, with the keyboard, and only under the
 track being logged.** The brief drew a sheet and one was built for an hour;
 Miyel: "the notes field should open in the tracklist, not as a popup." What
 sank the list in 2026-09-18 was a field under every row; one field, on the
 lit row, lifted clear of the keyboard, is a different thing. Left empty it
-shuts; written in, the words stand where it was. The envelope is beside the
-heart on the lit row, so a song can be sent without the box being opened.
+shuts; written in, the words stand where it was.
 
 **The track being logged is the one last touched, 2026-09-29.** Its name
 pressed, a star, the heart, its note opened — "any sort of click on a track
 counts as lighting it as live". Its number gives way to the live dot and the
-row takes the faintest green, and *Any notes?* stands under that track alone.
-Nothing about the beacon changes.
+row takes the faintest green, and the pencil stands at the end of that row
+alone. Nothing about the beacon changes.
 
 **The stars tell a scroll from a tap from a drag, 2026-09-29.** Nothing is
 set on the way down: up-and-down is the page's, sideways is the rating,
@@ -2069,11 +2478,30 @@ still is a tap. Every row's stars are live because of it. The lock — a row
 dead until pressed — was tried for an hour and was "super awkward" the other
 way.
 
-**Under a lit track, two words: Add notes and Send track, centred.** A word,
-not the envelope: it was tried beside the heart (it moved the stars), at the
-end of the line, and under the live dot, and none read right. The note opens
-in the album note's own box under the row; the eye beside the album's stars
-reveals the tracks' average with "avg." after it.
+**On a touch screen the stars stand up over the thumb, 2026-10-17, Miyel's
+idea.** A slide, or a rest, raises the five stars large, centred and nearly
+screen-wide; the big star over the thumb is the rating — read off the small
+row, it ran five stars off the screen's edge. While they are up the page
+holds still; a touch that starts up or down is still a scroll. Not the
+send's popup: a magnifier that is never pressed.
+
+**An album is saved with its stars, 2026-10-17, Miyel's call.** Save to
+journal on a record with no album stars shakes no and takes you back up to
+them; a Masterpiece counts, being five. Amends "anything at all" of
+2026-09-18 for albums. A track note is not held to it — not asked.
+
+**A note being written sits on the keyboard, 2026-10-17.** The foot of its
+box just over the keys, nothing between — the session's foot steps down
+while typing — and nothing scrolls back when the keyboard goes. Replaces
+lifting the track's name to the top (2026-09-22). Only the pencil and the
+written note open a track's note; a name, star or heart never does.
+
+**A pencil at the end of the lit row, 2026-10-21, and no sending from a
+listen.** In a slot every row keeps and leaves empty, so the stars never move
+when it appears — what sank the envelope in September; a word or an open box
+read as a field to fill in, and a track note has to feel optional (Miyel's
+brief, home and the session). Send track went with the two words: a song is
+sent from a real post, not from a listen (Miyel). The archive has the words.
 
 **A brow the height of the status bar stands over every page, 2026-09-29.**
 Solid, the page's colour, no blur and no hairline; what scrolls goes under
@@ -2081,17 +2509,31 @@ it rather than behind the clock. It is sixteen short of the inset, because
 that is where the site's fixed rows start (`--safe-top`); at the inset's
 full height it cut their tops off. Nothing where the inset is zero.
 
-**Discard · Save draft · Preview at the foot; on a desk, in a row at the
-top.** Discard asks twice. Save draft is the pull down as a word: the draft
-was always saving itself, this is the visible way out. Posting is on the
-preview.
+**On a phone they are doors in a raised bar at the sheet's foot,
+2026-10-23, her pick of three, over the row below** — the words read past
+("easy to miss"); a glyph over one word each, the Listen bar's shape, gone
+while a note is written. A desk keeps the row.
+
+**Discard · Save draft · Post in a row under the sheet's grip, phone and
+desk alike, 2026-10-22, Miyel's pick** over the foot, at the cost of a
+longer reach (the foot was for the thumb). Discard asks twice. Discard and
+Save draft end the listen and go back to the picker in the sheet — "discard
+and draft technically are back" — and so does a track note's Cancel; the
+grip, pressed or pulled, puts the sheet away. Opened cold: the foot. Post opens the entry
+as it will look, with Go back and a green Post? that posts — Miyel's pick,
+2026-10-17, over posting straight from the session. The word was Preview
+until then; testers did not know what a preview was.
 
 **The cover lands on the record's own cover at the top of the session.**
 There is no header for it to land in.
 
-**The session opens as a layer over the desk.** Leaving it puts you back on
-the desk rather than on the beacon, because the cross never unmounted. There
-is no dashboard door on the picker or after a save; the way back is the layer's.
+**The session is a sheet raised from the Listen bar, and lowering is not
+ending, 2026-10-21.** It stops 44 under the status bar and opens on the
+picker — *What are you putting on?*, Sent to you with faces, Drafts, search —
+and its grip is a tab, pulled from anywhere or pressed. Lowered, the record
+stays in hand, the beacon lit, the bar carrying cover, track and live dot.
+Reverses "leaving the screen ends it" (2026-09-16): she objected to a listen
+she had *shut*, and shutting is Discard, Save draft and Post.
 
 **The mobile version is not a reduced version.** Every screen holds one thing
 and runs full-bleed on both devices; nothing exists on one and not the other.
@@ -2143,9 +2585,6 @@ self-hosted app is.
 
 **Native app / iframe / proxy for viewing other journals.** All rebuild the
 platform behaviour being removed.
-
-**A directory of journals.** People arrive because somebody handed it to
-them. A directory doesn't solve discovery.
 
 ---
 

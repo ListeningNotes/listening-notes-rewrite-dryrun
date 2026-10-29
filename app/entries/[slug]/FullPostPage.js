@@ -32,19 +32,22 @@ import Chip from '../../../components/main_components/Slug_Page/Chip';
 import SentBy, { creditOn, useTrail } from '../../../components/main_components/Slug_Page/SentBy';
 import SenderTool from '../../../components/main_components/Slug_Page/SenderTool';
 import SendSheet from '../../../components/main_components/SendSheet';
+import { PromptSheet, useMonthPrompt } from '../../../components/main_components/MonthPrompt';
 import PrintBar from '../../../components/main_components/Slug_Page/PrintBar';
 import HorizonChart from '../../../components/main_components/HorizonChart';
 import MiniCard from '../../../components/main_components/Slug_Page/MiniCard';
 import MarqueeTitle from '../../../components/main_components/MarqueeTitle';
 import { handedOver, cameReadingOn } from '../../../library/handoff';
 import { tidyAddress } from '../../../library/return_address';
-import { useBookplate } from '../../../components/main_components/Bookplate';
+import { useBookplate, useVisiting } from '../../../components/main_components/Bookplate';
 import { useTheme } from '../../../components/main_components/Lightswitch';
 import CodeSlot from '../../../components/main_components/CodeSlot';
 import StarRating from '../../../components/main_components/StarRating';
 import StarPicker from '../../../components/session_components/StarRating';
 import { editStamp } from '../../../library/entry_formatter';
 import { useEntryEditor } from '../../../hooks/useEntryEditor';
+import { useSnippet } from '../../../hooks/useSnippet';
+import { SnippetLink } from '../../../components/main_components/Slug_Page/SnippetButton';
 
 // ── Printing, 2026-09-13 ──────────────────────────────────────────────────
 // The printer is a mode of this page, the way correcting is: press the
@@ -140,6 +143,14 @@ export default function FullPostPage({ entry, references = [], authed = false, l
   // the sheet up with nothing in it. See the note in `remove`.
   const edit = useEntryEditor(entry, { layered });
 
+  // ── Previews ──────────────────────────────────────────────────────────────
+  // Thirty seconds of a track, from Apple, asked for by the reader's own
+  // browser as the page opens (hooks/useSnippet.js). The column for the
+  // buttons is held while Apple is being asked, so the rows do not jump right
+  // when it answers; it goes again on a record where no track has a clip.
+  const snippet = useSnippet(entry.album, entry.artist);
+  const snippetGutter = !!entry.album && (!snippet.ready || snippet.any);
+
   // ── The cover ─────────────────────────────────────────────────────────────
   // Whether the address under the art is showing. The art is the button: press
   // it while a correction is open and it becomes the field for its own
@@ -210,7 +221,10 @@ export default function FullPostPage({ entry, references = [], authed = false, l
   }
   // The dots are the page's ink, so the page asks for the file that matches
   // it. The art's mark rides along so a corrected cover is never a day stale.
-  const codeSrc = `/api/entries/${encodeURIComponent(entry.slug)}/code?theme=${theme === 'dark' ? 'dark' : 'light'}`
+  // A friend's entry read inside this journal (app/dashboard/people/[id]/
+  // [slug], 2026-10-28) asks their journal for its code, which only it has.
+  const elsewhere = useVisiting() && entryUrl ? `https://${host}` : '';
+  const codeSrc = `${elsewhere}/api/entries/${encodeURIComponent(entry.slug)}/code?theme=${theme === 'dark' ? 'dark' : 'light'}`
     + `&v=${artMark(entry.album_art_source || entry.album_art || '')}`;
   const coverSlot = {
     address: entryUrl,
@@ -405,6 +419,9 @@ export default function FullPostPage({ entry, references = [], authed = false, l
   // and nothing sensible happens if both are true at once anyway.
   const [sendering, setSendering] = useState(false);
   const [sending, setSending] = useState(false);
+  // The month's prompt, while one is open (MonthPrompt.js).
+  const [prompt, tellPrompt] = useMonthPrompt(authed);
+  const [submitting, setSubmitting] = useState(false);
   // Where a panel of this entry's own hangs its footer bar. It has to be
   // *inside the layer*: z-index is per stacking context, the layer is fixed at
   // 200 and the bar is 140, so a bar rendered into the body competes with the
@@ -467,6 +484,9 @@ export default function FullPostPage({ entry, references = [], authed = false, l
          this record already in it — the two ways in differ only in which
          half is answered before the sheet arrives. */
       onSend={() => setSending(true)}
+      /* And this record for the month's prompt, while one is open and
+         nothing has been sent for it. */
+      onSubmit={prompt && !prompt.sent ? () => setSubmitting(true) : null}
       /* And another listen of the same record, which is a new entry and never
          an edit of this one. */
       onRelisten={revisit}
@@ -1826,10 +1846,21 @@ export default function FullPostPage({ entry, references = [], authed = false, l
                   onField={(key, value) => edit.setTrack(i, key, value)}
                   onOpenDial={setDialTrack}
                   dialOpen={dialTrack === i}
+                  gutter={snippetGutter}
+                  play={snippet.playFor(t.num, t.name)}
+                  snippetKey={`${entry.slug}:${i}`}
                 />
                 );
               })}
             </div>
+            {/* The way out to the record (the previews brief). The caption
+                that stood beside it, Previews · 30s, came off the same day
+                it went on (Miyel, 2026-10-13). Not while correcting. */}
+            {!edit.editing && snippet.recordLink && (
+              <div className="ln-snippet-foot">
+                <SnippetLink href={snippet.recordLink}>Open in Apple Music</SnippetLink>
+              </div>
+            )}
             {/* The way in, here, only where there is no album note for it
                 to stand under. */}
             {!albumNotes && wayIn && <div className="ln-message-foot">{wayIn}</div>}
@@ -1899,6 +1930,17 @@ export default function FullPostPage({ entry, references = [], authed = false, l
           collection_id: entry.collection_id || '',
           slug: entry.slug,
         }}
+      />
+      {/* The month's prompt (MonthPrompt.js): this entry's record and its
+          writing as they stand, sent to Listening Notes on one press. Mounted
+          here for the reason the send sheet is. */}
+      <PromptSheet
+        open={submitting}
+        onClose={() => setSubmitting(false)}
+        entry={entry}
+        keeper={(keeper_name || '').trim()}
+        prompt={prompt}
+        onSent={tellPrompt}
       />
     </div>
   );

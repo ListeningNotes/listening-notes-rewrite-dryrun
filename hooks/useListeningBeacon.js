@@ -14,6 +14,8 @@
 // - isLive: whether a listen is open. It is what lights the dot on the mark.
 // - before: up to three records listened to lately, most recent first, each
 //   with a slug when it was published and none when it is still a draft.
+// - rated: while a listen is open, one number a track in track order, its
+//   rating or 0 — the bars on the cover's foot (2026-10-23). Empty otherwise.
 //
 // ── One poll, however many callers ─────────────────────────────────────────
 // This hook is called by four separate components — the beacon itself, the
@@ -54,11 +56,27 @@ export const CAPTION = {
   logged: 'Last logged',
 };
 
-const REFRESH_MS = 15000;  // ask our own server every 15 seconds
+// ── How often, 2026-10-20 ─────────────────────────────────────────────────
+// Every fifteen seconds while a listen is live, and once a minute while
+// nothing is (Miyel, on what hosting will cost: every open journal asking
+// four times a minute whether anything is playing was most of the requests
+// the free plan counts). A quiet journal's visitor sees a listen start within
+// about a minute; a live one moves at the old pace; and the keeper's own
+// device never waits on either, because `announce` publishes at once and
+// puts the clock on the right pace.
+const LIVE_MS = 15000;
+const QUIET_MS = 60000;
 // How long the owner's own hand outranks the server's answer. It has to clear
 // the ten seconds /api/public/beacon may be served from the edge cache, plus a
 // poll's own flight — see `announce` and the check in `poll`.
 const HOLD_MS = 12000;
+// And while a listen in this tab is telling the beacon what it is doing, as
+// it changes (useListeningSession, 2026-10-23): long enough to clear the
+// edge's ten seconds and the twenty it may go on serving the old answer
+// while it fetches a new one, so the keeper's own home never steps back to
+// what the server said a moment ago (Miyel: "how much of a delay there is
+// between the actual song that you're on and what the beacon shows").
+export const LISTEN_HOLD_MS = 30000;
 
 // The same key the database generates for every entry, written out in
 // JavaScript so a record can be matched against the journal without asking
@@ -94,6 +112,7 @@ const EMPTY = Object.freeze({
   artist: '',
   art: '',
   track: '',
+  rated: Object.freeze([]),
   isLive: false,
   before: [],
 });
@@ -101,6 +120,8 @@ const EMPTY = Object.freeze({
 const beacon = {
   snapshot: EMPTY,
   listeners: new Set(),
+  // The next ask, a timeout set again after every answer at the pace the
+  // answer calls for (schedule).
   timer: null,
   // What the owner just did, and until when it beats anything the server says.
   held: null,
@@ -117,6 +138,7 @@ function same(a, b) {
     && a.artist === b.artist
     && a.art === b.art
     && a.track === b.track
+    && a.rated.join() === b.rated.join()
     && a.before.length === b.before.length
     && a.before.every((x, i) => x.album === b.before[i]?.album);
 }
@@ -154,6 +176,8 @@ async function poll() {
     artist: data.artist || '',
     art: data.art || '',
     track: data.track || '',
+    // Numbers only, and only while live; an older copy sends none.
+    rated: state === 'logging' && Array.isArray(data.rated) ? data.rated.map(r => Number(r) || 0) : [],
     isLive: state === 'logging',
     before: Array.isArray(data.before) ? data.before : [],
   };
@@ -185,8 +209,12 @@ async function poll() {
   // wedging the beacon if the server genuinely disagrees, for instance
   // because the same journal is being written in on another phone.
   if (beacon.heldUntil > Date.now()) {
+    // And, while a listen is being told from here, the song and the bars
+    // too: the server has caught up when it says what this tab said.
+    const told = beacon.held.state === 'logging';
     const caughtUp = snapshot.state === beacon.held.state
-      && snapshot.album === beacon.held.album;
+      && snapshot.album === beacon.held.album
+      && (!told || (snapshot.track === beacon.held.track && snapshot.rated.join() === beacon.held.rated.join()));
     if (!caughtUp) return;
     beacon.heldUntil = 0;
   }
@@ -223,34 +251,64 @@ async function poll() {
 // is the end of the drop (HomeNav): the record falls into the journal and the
 // slot refills with it, captioned Last logged, without waiting to be told
 // something it already knows.
-export function announce({ album, artist, art }, state = 'logging') {
+//
+// ── And the listen tells it as it goes, 2026-10-23 ────────────────────────
+// The song and the ratings so far come too, from the listen itself on every
+// change (useListeningSession), held for LISTEN_HOLD_MS: the keeper's own
+// home is told by the listen rather than by the server, which the world
+// polls through a cache and which can be half a minute behind. A visitor
+// still reads the server, and is that far behind on purpose — it is what
+// keeps a beacon cheap to watch.
+export function announce({ album, artist, art, track = '', rated = [] }, state = 'logging', hold = HOLD_MS) {
   const next = {
     state,
     album: album || '',
     artist: artist || '',
     art: art || '',
-    // No song yet: one has not been opened. The beacon names the record
-    // instead, which is what the route does for the same case.
-    track: '',
+    // The song being logged, when the listen says one; blank names the
+    // record, which is what the route does for the same case.
+    track: track || '',
+    // The bars, the way the server keeps them: nothing while nothing is
+    // rated (library/needle.js, floorOf).
+    rated: Array.isArray(rated) && rated.some(r => r > 0) ? rated.map(r => Number(r) || 0) : [],
     isLive: state === 'logging',
     before: beacon.snapshot.before || [],
   };
   // Held before it is published, so a poll that answers mid-publish is already
   // being measured against this.
   beacon.held = next;
-  beacon.heldUntil = Date.now() + HOLD_MS;
+  beacon.heldUntil = Date.now() + hold;
   publish(next);
+  // A listen begun or ended here changes the pace at once: the next ask is a
+  // full live or quiet beat from now, and lands after the hold has done its
+  // work.
+  if (beacon.timer) schedule();
+}
+
+// The next ask, at the pace of what is on the beacon now: fifteen seconds
+// while live, a minute while quiet. Set again after every answer, so a
+// listen that starts or ends changes the pace from the next ask on.
+function schedule() {
+  clearTimeout(beacon.timer);
+  beacon.timer = setTimeout(async () => {
+    await poll();
+    if (beacon.listeners.size > 0) schedule();
+  }, beacon.snapshot.isLive ? LIVE_MS : QUIET_MS);
 }
 
 // Coming back to the tab. One ask straight away — somebody who has just looked
 // at the beacon should not be reading a record from before lunch — and then the
-// clock is restarted, so the next ask is a full fifteen seconds from this one
-// rather than whenever the old schedule happened to have landed.
+// clock is restarted, so the next ask is a full beat from this one rather than
+// whenever the old schedule happened to have landed.
 function wake() {
   if (document.visibilityState !== 'visible' || !beacon.timer) return;
-  poll();
-  clearInterval(beacon.timer);
-  beacon.timer = setInterval(poll, REFRESH_MS);
+  schedule();
+  askAndPace();
+}
+
+// One ask now, and the clock set again at the pace its answer calls for.
+function askAndPace() {
+  poll().then(() => { if (beacon.listeners.size > 0) schedule(); });
 }
 
 // Starts the timer for the first component that asks and stops it when the last
@@ -259,14 +317,15 @@ function wake() {
 function subscribe(listener) {
   beacon.listeners.add(listener);
   if (beacon.listeners.size === 1) {
-    poll();
-    beacon.timer = setInterval(poll, REFRESH_MS);
+    // The clock starts now; the first answer then sets its pace.
+    schedule();
+    askAndPace();
     document.addEventListener('visibilitychange', wake);
   }
   return () => {
     beacon.listeners.delete(listener);
     if (beacon.listeners.size === 0) {
-      clearInterval(beacon.timer);
+      clearTimeout(beacon.timer);
       beacon.timer = null;
       document.removeEventListener('visibilitychange', wake);
     }

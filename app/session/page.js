@@ -51,16 +51,16 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { CaretLeft } from '@phosphor-icons/react';
+import { BookmarkSimple, CaretLeft, PaperPlaneTilt, Trash } from '@phosphor-icons/react';
 import { useListeningSession, SESSION_STEPS, PENDING_KEY, TRACK_NOTE_KEY, saidSoAboutTheDesk, saidSoAboutTheEntry } from '../../hooks/useListeningSession';
 import AlbumPicker from '../../components/session_components/AlbumPicker';
 import TrackNotes from '../../components/session_components/steps/TrackNotes';
 import AlbumNotes from '../../components/session_components/steps/AlbumNotes';
 import SessionPreview from '../../components/session_components/steps/SessionPreview';
 import Trouble from '../../components/session_components/Trouble';
-import SendSheet from '../../components/main_components/SendSheet';
 import TrackNotePage from '../entries/[slug]/TrackNotePage';
-import { useBeforeLeaving, useLayerExit } from '../../components/main_components/LayerEntry';
+import { useBeforeLeaving } from '../../components/main_components/LayerEntry';
+import { announce } from '../../hooks/useListeningBeacon';
 
 // How long the picked cover takes to reach the header. The step body slides in
 // on the same curve at nearly the same length, so the two read as one move.
@@ -70,6 +70,21 @@ const LANDING_MS = 520;
 // at the left, the tracks at the right. A number about the listen, not the
 // window — it opens beside the spine.
 const WIDE_PX = 720;
+
+// ── Letting go of a track's note ──────────────────────────────────────────
+// A note put away by anything but its own cursor leaving — another track
+// lit, or its name pressed again — lets go of the cursor first, unless it is
+// the note of the track being pressed (`except`, its place in the list).
+// Taken away while it still held the cursor, the box left iOS's keyboard up
+// over a field that was gone, and a field that is removed sends no
+// `focusout`, so the page never heard the note had closed and the next one
+// opened from a page still moved for the last.
+function letGo(except = null) {
+  const el = document.activeElement;
+  if (el?.tagName !== 'TEXTAREA' || el.dataset.track == null) return;
+  if (except !== null && el.dataset.track === String(except)) return;
+  el.blur();
+}
 
 export default function SessionPage() {
   const [authed, setAuthed]     = useState(false);
@@ -118,6 +133,26 @@ export default function SessionPage() {
 
   const s = useListeningSession({ step });
 
+  // ── The bar's track, lit again when the sheet is raised, 2026-10-21 ──────
+  // Lowered, the record in hand carries the track that was lit (keepInHand,
+  // below), and the bar says it. Raised, the browser's copy of the draft puts
+  // it back on air only if something had been written, so a listen lowered
+  // after pressing a name came back with nothing lit while the bar had just
+  // said which track it was. Whenever the tracklist is in and nothing is lit,
+  // for as long as this is the record — opening it can run twice (React's
+  // development mode does, and the second clears what the first lit), so it
+  // is held until another record is opened rather than spent on the first go.
+  const relight = useRef(pending?.lit ? { ...pending.lit, album: pending.album } : null);
+  useEffect(() => {
+    const lit = relight.current;
+    if (!lit || !s.tracks?.length || s.onAir !== null) return;
+    if (s.albumInput && s.albumInput !== lit.album) { relight.current = null; return; }
+    const at = s.tracks.findIndex((t, i) => (t.number || i + 1) === lit.number && t.title === lit.title);
+    if (at >= 0) s.putOnAir(at);
+  // putOnAir is a state setter and never changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.tracks, s.onAir, s.albumInput]);
+
   // ── How wide the listen is, which is not how wide the screen is ─────────
   // On a desk the listen opens over the journal, beside the spine, and the
   // spine is dragged to whatever width its keeper likes (useSpineWidth). So
@@ -138,17 +173,50 @@ export default function SessionPage() {
 
   // ── A track's note, under its row ────────────────────────────────────────
   // Which track's field is open, or null. One at a time; it shuts when it is
-  // left empty (TrackRow.js) or when another track's opens.
+  // left empty (TrackRow.js) or when another track's opens. Only three
+  // things open one, and so bring up the keyboard: Add notes, Edit notes,
+  // and the written note pressed on its row (Miyel, 2026-10-17: "if I click
+  // on a song, just to click on a song to go to it, to highlight it on the
+  // beacon or to re-rate it or something, it should not open the notes with
+  // the keyboard"). A name, a star or a heart lights the track and shuts any
+  // other's note, keyboard and all — see letGo, above the page.
   const [noting, setNoting] = useState(null);
-  const shutNote = useCallback(() => setNoting(null), []);
+  const shutNote = useCallback(() => { letGo(); setNoting(null); }, []);
   // Lighting a track shuts the box on any other: the field follows the song
   // being logged and is never left open behind it (found in a real listen,
   // 2026-09-30 — a box still open on track eight with track nine lit).
   const putOnAir = s.putOnAir;
   const light = useCallback(k => {
+    letGo(k);
     putOnAir(k);
     setNoting(open => (open === k ? open : null));
   }, [putOnAir]);
+
+  // ── The foot steps down while a note is being written, 2026-10-17 ───────
+  // On a phone the keyboard stands where Discard · Save draft · Preview
+  // stand, and the band rode up on it into the gap between the writing and
+  // the keys — Miyel: "the notes that I'm typing into should be right above
+  // the keyboard with nothing in between." The cross's own band does the
+  // same (HomeNav, hn--typing). Read a tick after the event: `focusin` fires
+  // while the focus is still moving.
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    let tick = null;
+    const mark = () => {
+      clearTimeout(tick);
+      tick = setTimeout(() => {
+        const el = document.activeElement;
+        setTyping(Boolean(el) && Boolean(root.current?.contains(el)) && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT'));
+      }, 0);
+    };
+    document.addEventListener('focusin', mark);
+    document.addEventListener('focusout', mark);
+    return () => {
+      clearTimeout(tick);
+      document.removeEventListener('focusin', mark);
+      document.removeEventListener('focusout', mark);
+    };
+  }, []);
 
   // The tracks' average, behind a press under the album's stars. Kept here
   // because the ratings it is made of live in the list below.
@@ -156,15 +224,6 @@ export default function SessionPage() {
   const ratedSoFar = Object.values(s.trackRatings || {}).filter(v => v > 0);
   const avg = ratedSoFar.length ? (ratedSoFar.reduce((a, b) => a + b, 0) / ratedSoFar.length).toFixed(2) : null;
 
-  // ── Sending a song from the tracklist, 2026-09-26 ───────────────────────
-  // The envelope on a track row (RecordContents) opens the one send sheet
-  // with that song in the left square: the record on the desk, and the
-  // track's title as the song. A track and not the album, because there is no
-  // entry yet and "hear this now" dies if it waits for the writing; the album
-  // keeps being sent from the finished entry. The session stays open behind
-  // it — the sheet is a popup over this page and the draft goes on saving
-  // itself underneath, so nothing is saved, paused or lost by sending.
-  const [sendingTrack, setSendingTrack] = useState(null);
 
   // ── The note comes up to meet the keyboard, 2026-09-22 ──────────────────
   // Miyel: "it still feels weird when I open the keyboard — it glitches just
@@ -180,72 +239,160 @@ export default function SessionPage() {
   // And lifting the note once it has the focus is too late — that was the
   // second try, and iOS centred the box it had been shown at the tap. So the
   // tap on a note you are not already writing in is the listen's to handle:
-  // it reads which letter the finger landed on, lifts the page until the
-  // track's name sits just under the header (her ask: "have the track name
-  // stay so it doesn't feel like it's going as far"), and only then puts the
-  // cursor there and asks for the keyboard. iOS is shown a note already in
-  // view and has nothing to slide. The lift glides up with the keyboard
-  // rather than jumping. When the keyboard goes, the page goes back down.
+  // it reads which letter the finger landed on, moves the page first, and
+  // only then puts the cursor there and asks for the keyboard. iOS is shown a
+  // note already in view and has nothing to slide. The move glides with the
+  // keyboard rather than jumping. A note opened by a word — Add notes, Edit
+  // notes, the note pressed on its row — asks for the same move before it
+  // takes the cursor (TrackRow.js), for the same reason.
+  //
+  // ── Onto the keyboard, 2026-10-17 ───────────────────────────────────────
+  // It lifted the track's name to the top of the screen (her ask of
+  // 2026-09-22: "have the track name stay so it doesn't feel like it's going
+  // as far"), and a short note then sat at the top with half a screen of
+  // other tracks between it and the keys. Miyel: "The notes that I'm typing
+  // into should be right above the keyboard with nothing in between." So the
+  // page now moves until the foot of the note's box sits just over the
+  // keyboard — up, or down when the note is high on the screen ("bring it
+  // down and close the gap") — and never so far that the track's name goes
+  // up under the top; a note longer than the room keeps its name, and then
+  // the place the cursor is. As the note grows the page keeps its foot on the
+  // keys, and when the keyboard's own height changes the note follows it.
+  //
+  // ── And nothing moves back, 2026-10-17 ──────────────────────────────────
+  // When the keyboard went the page went back to where it had been before
+  // the note opened. Pressing another track while writing was a page sliding
+  // away from the track just pressed — part of what made clicking around a
+  // listen "feel very disconnected". It stays where the writing left it now;
+  // only the room made for going up is taken away again, and the page comes
+  // down out of that room first if it is standing in it.
   //
   // A long press is left to the browser — it is how words get selected — and
-  // is still lifted once it has the focus, after iOS has had its slide.
+  // is still moved once it has the focus, after iOS has had its slide.
   // Touch screens only: a mouse focuses the note on arrival and there is no
   // keyboard to make room for.
   useEffect(() => {
-    // How much of the screen a keyboard leaves, once one has been seen — a
-    // guess at a little over half before that.
+    // How much of the screen a keyboard leaves, once one has been seen, and
+    // before that 57% of the window — what Miyel's phone leaves, 498 of 874
+    // (NOTES, Gotchas). A guess that is off is put right as the keyboard
+    // arrives (onViewport).
     let room = null;
     let lifted = null;
     let settle = null;
     let press = null;
+    let opened = null;
+    let flushing = null;
     const vv = window.visualViewport;
     const touchy = () => window.matchMedia('(pointer: coarse)').matches;
-    const onViewport = () => { if (vv && vv.height < screen.height * 0.8) room = vv.height; };
+    // Whether a keyboard is up: the part of the screen you can see a fifth
+    // shorter than the tallest it has been at this width. Not against the
+    // screen's own height, which Safari's toolbars alone take a fifth of —
+    // that read a browser tab as a keyboard that was not there. A turned
+    // phone starts the count again.
+    let tallest = vv ? vv.height : 0;
+    let across = vv ? vv.width : 0;
+    const keys = () => !!vv && vv.height < tallest * 0.8;
+    const onViewport = () => {
+      if (Math.abs(vv.width - across) > 1) { across = vv.width; tallest = vv.height; }
+      tallest = Math.max(tallest, vv.height);
+      if (!keys()) return;
+      room = vv.height;
+      // The keyboard has arrived, or changed height (its row of suggestions
+      // comes and goes): the note is set back on it once it has settled.
+      clearTimeout(flushing);
+      flushing = setTimeout(() => {
+        const field = notes(document.activeElement);
+        if (lifted && field && field === document.activeElement) settleOn(field);
+      }, 120);
+    };
     const notes = target => {
       const field = target?.closest?.('.ses-grow')?.querySelector('textarea');
       return field && field.closest('.ses') ? field : null;
     };
 
-    // Lifts the page so the line above the note — the track's name, or
-    // "Album notes" — sits just under the header, and further only if the
-    // place you tapped would otherwise be under the keyboard. Returns how far
-    // it actually went, which the scroll range can make less than asked.
-    const raise = (field, tapY) => {
+    // How far the page has to move for the note to sit on the keyboard, in
+    // the coordinates of the part of the screen being looked at: positive
+    // up, negative down. `edge` is where the keyboard's top is, or will be.
+    const GAP = 10;
+    // ── And over the bar the keyboard floats, 2026-10-23 ────────────────
+    // An iPhone sets the form's ▲ ▼ ✓ bar over the page, above the keys,
+    // and the part of the screen the page is told it can see runs down
+    // under it to the keys' own top — so a note set on the keys had its foot
+    // under the bar (Miyel: "make sure … that the keyboard is under the
+    // entire text field"). On an iPhone the keys' edge is taken that bar's
+    // height higher. Measured off her screenshot: 56 points, the bar and the
+    // air either side of it.
+    const IPHONE = /iP(hone|ad|od)/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const KEY_BAR = IPHONE ? 56 : 0;
+    const shift = (field, tapY, keysAt) => {
+      const edge = keysAt - KEY_BAR;
       const root = field.closest('.ses');
       const scroller = field.closest('.lay') || document.scrollingElement;
-      const head = root.querySelector('.ses-head');
-      const under = Math.max(
-        head ? head.getBoundingClientRect().bottom : 0,
-        // No header now: the lift stops under the phone's status bar, which
-        // is where a row lifted to the very top went (Miyel's screenshot,
-        // 2026-09-29 — the track's name under the clock).
-        parseFloat(getComputedStyle(root).getPropertyValue('--ses-inset')) || 0,
-      );
+      const frame = scroller === document.scrollingElement ? (vv?.offsetTop || 0) : scroller.getBoundingClientRect().top;
+      // No header now: the top of the room is under the phone's status bar,
+      // which is where a row lifted to the very top went (Miyel's screenshot,
+      // 2026-09-29 — the track's name under the clock).
+      const top = (parseFloat(getComputedStyle(root).getPropertyValue('--ses-inset')) || 0) + 10;
       // What is kept in sight over the note: a track's row in a listen, and
-      // on a track note the head of its card — cover, song, stars, marks.
-      // The note's own box was the fallback for a track note, which put the
-      // box against the top of the screen with the song gone above it and
-      // half a screen of nothing between the box and the keyboard (Miyel,
-      // 2026-09-30: "the track data is so lost with so much empty space").
-      // The page still lifts further if where you tapped would be under the
-      // keyboard.
+      // on a track note the head of its card — cover, song, stars, marks
+      // (Miyel, 2026-09-30: "the track data is so lost with so much empty
+      // space").
       const above = field.closest('.ses-row')
         || field.closest('.tn-card')?.querySelector('.tn-head')
         || field.closest('.ses-grow').previousElementSibling
         || field;
-      const space = room || Math.round(window.innerHeight * 0.55);
-      const at = tapY ?? field.getBoundingClientRect().top + 20;
-      let by = above.getBoundingClientRect().top - (under + 10);
-      if (at - by > space - 64) by = at - (space - 64);
-      if (by < 4) return 0;
+      const box = (field.closest('.ses-note-box') || field).getBoundingClientRect();
+      // The foot of the box just over the keys…
+      let by = box.bottom - frame - (edge - GAP);
+      // …but never the line above it up under the top of the screen…
+      const most = above.getBoundingClientRect().top - frame - top;
+      if (by > most) by = most;
+      // …and wherever the cursor goes — the letter tapped, or the end of the
+      // writing — clear of the keys whatever that costs.
+      const at = (tapY ?? box.bottom - 30) - frame;
+      if (at - by > edge - 40) by = at - (edge - 40);
+      return by;
+    };
+
+    // Moves the page, before the keyboard is up. Returns how far it went,
+    // which the scroll range can make less than asked.
+    const raise = (field, tapY) => {
+      const root = field.closest('.ses');
+      const scroller = field.closest('.lay') || document.scrollingElement;
+      lifted = { scroller, root };
+      const by = shift(field, tapY, room || Math.round(window.innerHeight * 0.57));
+      if (Math.abs(by) < 4) return 0;
       // Room to go up into: a listen with little written has nowhere to
       // scroll to, so the page is given a screen of blank below while a note
-      // is open, and it is taken away again once the page is back down.
-      root.style.paddingBottom = '100vh';
-      if (!lifted) lifted = { scroller, root, from: scroller.scrollTop };
+      // is open, and it is taken away again once the note has closed.
+      if (by > 0) root.style.paddingBottom = '100vh';
       const was = scroller.scrollTop;
       scroller.scrollTop = was + by;
       return scroller.scrollTop - was;
+    };
+
+    // The page is already where it is going — that is what iOS was shown.
+    // What you see is drawn where it was and let go, on the site's curve, so
+    // it moves with the keyboard instead of jumping ahead of it. Only the
+    // listen moves.
+    const glide = (field, went) => {
+      const body = went && field.closest('.ses-body');
+      if (!body) return;
+      body.style.transition = 'none';
+      body.style.transform = `translateY(${went}px)`;
+      body.getBoundingClientRect();
+      body.style.transition = 'transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1)';
+      body.style.transform = '';
+      setTimeout(() => { body.style.transition = ''; }, 380);
+    };
+
+    // With the keyboard up: back onto it, gently.
+    const settleOn = field => {
+      const by = shift(field, null, vv.height);
+      if (Math.abs(by) < 4) return;
+      if (by > 0) field.closest('.ses').style.paddingBottom = '100vh';
+      (field.closest('.lay') || document.scrollingElement).scrollBy({ top: by, behavior: 'smooth' });
     };
 
     // Which letter a point is over, read off a copy of the writing laid over
@@ -295,54 +442,81 @@ export default function SessionPage() {
       e.preventDefault();
       clearTimeout(settle);
       const went = raise(field, p.y);
+      opened = field;
       field.setSelectionRange(at, at);
       field.focus({ preventScroll: true });
-      if (went <= 0) return;
-      // The page is already up — that is what iOS was shown. What you see
-      // is drawn where it was and let go, on the site's curve, so it rises
-      // with the keyboard instead of jumping ahead of it. The header is not
-      // in it: only the listen under the header moves.
-      const body = field.closest('.ses-body');
-      if (!body) return;
-      body.style.transition = 'none';
-      body.style.transform = `translateY(${went}px)`;
-      body.getBoundingClientRect();
-      body.style.transition = 'transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1)';
-      body.style.transform = '';
-      setTimeout(() => { body.style.transition = ''; }, 380);
+      glide(field, went);
+    };
+
+    // A note opened by a word asks for the move before it takes the cursor.
+    const onOpening = e => {
+      const field = notes(e.target);
+      if (!field || !touchy()) return;
+      clearTimeout(settle);
+      opened = field;
+      glide(field, raise(field, null));
     };
 
     // A note that got the focus some other way — a long press, a keyboard —
-    // is still lifted, after whatever iOS has done.
+    // is still moved, after whatever iOS has done.
     const onIn = e => {
       const field = notes(e.target);
       if (!field || !touchy()) return;
       clearTimeout(settle);
-      raise(field, null);
+      if (field === opened) { opened = null; return; }
+      opened = null;
+      if (keys()) settleOn(field);
+      else raise(field, null);
     };
     const onOut = e => {
       if (!lifted) return;
       const next = e.relatedTarget;
       if (notes(next) && lifted.root.contains(next)) return;
-      const { scroller, root, from } = lifted;
+      const { scroller, root } = lifted;
       lifted = null;
-      scroller.scrollTo({ top: from, behavior: 'smooth' });
-      settle = setTimeout(() => { if (!lifted) root.style.paddingBottom = ''; }, 500);
+      clearTimeout(settle);
+      // Once the keyboard has gone and the box has shut.
+      settle = setTimeout(() => {
+        if (lifted || !root.style.paddingBottom) return;
+        const extra = parseFloat(getComputedStyle(root).paddingBottom) || 0;
+        const most = scroller.scrollHeight - extra - scroller.clientHeight;
+        if (scroller.scrollTop <= most + 1) { root.style.paddingBottom = ''; return; }
+        scroller.scrollTo({ top: Math.max(0, most), behavior: 'smooth' });
+        settle = setTimeout(() => { if (!lifted) root.style.paddingBottom = ''; }, 450);
+      }, 350);
     };
+
+    // Writing at the end of a note grows its box down under the keys; the
+    // page follows it a line at a time, so its foot stays on the keyboard.
+    const onInput = e => {
+      const field = notes(e.target);
+      if (!field || field !== e.target || !lifted || !touchy() || !keys()) return;
+      if (field.selectionEnd !== field.value.length) return;
+      const by = shift(field, null, vv.height);
+      if (by < 4) return;
+      field.closest('.ses').style.paddingBottom = '100vh';
+      (field.closest('.lay') || document.scrollingElement).scrollTop += by;
+    };
+
     document.addEventListener('touchstart', onStart, { capture: true, passive: true });
     document.addEventListener('touchmove', onMove, { capture: true, passive: true });
     document.addEventListener('touchend', onEnd, { capture: true, passive: false });
+    document.addEventListener('ses-note-opening', onOpening);
     document.addEventListener('focusin', onIn);
     document.addEventListener('focusout', onOut);
+    document.addEventListener('input', onInput);
     vv?.addEventListener('resize', onViewport);
     return () => {
       document.removeEventListener('touchstart', onStart, true);
       document.removeEventListener('touchmove', onMove, true);
       document.removeEventListener('touchend', onEnd, true);
+      document.removeEventListener('ses-note-opening', onOpening);
       document.removeEventListener('focusin', onIn);
       document.removeEventListener('focusout', onOut);
+      document.removeEventListener('input', onInput);
       vv?.removeEventListener('resize', onViewport);
       clearTimeout(settle);
+      clearTimeout(flushing);
     };
   }, []);
 
@@ -455,6 +629,12 @@ export default function SessionPage() {
   // From the picker: a record, and the box its cover was tapped in.
   function pick(record, from) {
     try { localStorage.setItem(PENDING_KEY, JSON.stringify(record)); } catch { /* the listen still opens */ }
+    // The beacon says so at the press, as it did when the beacon's own picker
+    // chose the record (HomeNav's beginListen, until the picker moved into
+    // the sheet, 2026-10-21): home is under the sheet and the Listen bar is
+    // read from it the moment the sheet is lowered, so neither should wait
+    // out a poll to hear what is playing. The needle's own write follows.
+    announce({ album: record.album, artist: record.artist, art: record.artUrl });
     // A record pressed is a listen, whatever song was on the desk before it.
     try { sessionStorage.removeItem(TRACK_NOTE_KEY); } catch { /* nothing to clear */ }
     setSong(null);
@@ -527,7 +707,6 @@ export default function SessionPage() {
   // Set while a listen is being thrown away, so the sheet's own way out does
   // not write the draft it is in the middle of deleting.
   const discarding = useRef(false);
-  const exit = useLayerExit();
   const layered = useBeforeLeaving(async () => {
     if (discarding.current) return true;
     // A track note keeps its own words as they are typed (TrackNotePage), so
@@ -538,14 +717,46 @@ export default function SessionPage() {
       return true;
     }
     if (!s.saved && !(await s.saveDraft())) return false;
+    // ── Lowering is not ending, 2026-10-21 ──────────────────────────────
+    // The pull, Escape and the grip put the listen down: the record stays
+    // in hand and the Listen bar carries it until it is raised again
+    // (Miyel's brief, home and the session). Save draft, Discard and Post
+    // are the endings, and only they take the record off the desk — the
+    // first two without leaving the sheet, since 2026-10-22 (below).
+    if (!s.saved && pending?.album) {
+      keepInHand();
+      return true;
+    }
     try { localStorage.removeItem(PENDING_KEY); } catch { /* nothing to clear */ }
     saidSoAboutTheDesk();
     return true;
   });
 
+  // The record stays in hand, and says which track was lit when it was put
+  // down, for the bar to carry: the browser's copy of the draft knows too,
+  // but only once something has been written, and the bar has to say the
+  // track the moment a name is pressed. Then the needle is told to stay.
+  function keepInHand() {
+    const t = s.onAir === null ? null : s.tracks?.[s.onAir];
+    const lit = t ? { title: t.title, number: t.number || s.onAir + 1, duration: t.duration ?? null } : null;
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ ...pending, lit })); } catch { /* the bar says the record instead */ }
+    s.putDown();
+    saidSoAboutTheDesk();
+  }
+
+  // Opened cold there is no sheet to lower, so lowering is going home with
+  // the record still in hand — the pull from the top and the mouse's caret
+  // both, the same as over the journal. A draft that will not save keeps
+  // you here, as everywhere.
+  async function lower() {
+    if (!s.saved && !(await s.saveDraft())) return false;
+    keepInHand();
+    return true;
+  }
+
 
   // Back to the picker. Nothing is confirmed and nothing is lost: a listen with
-  // writing on it is kept as a draft first, so it is waiting under Unfinished
+  // writing on it is kept as a draft first, so it is waiting under Drafts
   // when the picker comes back.
   async function leave() {
     // Kept, always — not only when something has been written. A record you
@@ -568,15 +779,28 @@ export default function SessionPage() {
     return true;
   }
 
-  // ── The three words at the foot, 2026-09-29 ──────────────────────────────
-  // Save draft keeps the listen and leaves. The draft was already saving
-  // itself as you went and again on the way out, so this is a visible way
-  // out rather than a new ability: over the journal it closes the sheet the
-  // way the pull does, and the sheet's own hook writes the draft first;
-  // opened cold it puts the record down and shows the picker.
-  function saveDraftAndLeave() {
-    if (exit) { exit(); return; }
-    leave();
+  // ── The three words, 2026-09-29 ─────────────────────────────────────────
+  // Save draft keeps the listen and leaves it. The draft was already saving
+  // itself as you went, so this is a visible way out rather than a new
+  // ability: the record comes off the desk and the picker comes back.
+  //
+  // ── Back to the picker, and the sheet stays up, 2026-10-22 ─────────────
+  // Over the journal it used to close the sheet the way the pull does.
+  // Miyel, with the sheet on her phone: "discard and draft technically are
+  // back (or should work that way)". In a sheet that opens on the picker,
+  // ending a listen lands on choosing the next one, and the grip is what puts
+  // the whole thing away. It replaced a back caret that lived in the corner
+  // for an hour. Opened cold it always did this.
+  async function saveDraftAndLeave() {
+    if (!(await leave())) return;
+    toTheTop();
+  }
+  // The picker comes back at the top of the sheet, not wherever the tracks
+  // had been scrolled to.
+  function toTheTop() {
+    const sheet = root.current?.closest('.lay');
+    if (sheet) sheet.scrollTo({ top: 0 });
+    else window.scrollTo({ top: 0 });
   }
 
   // Discard throws the listen away, draft included, and asks first: the
@@ -596,22 +820,24 @@ export default function SessionPage() {
     await s.discardDraft();
     try { localStorage.removeItem(PENDING_KEY); } catch { /* nothing to clear */ }
     saidSoAboutTheDesk();
-    if (exit) { exit(); return; }
     setLanding(null);
     show(null);
     discarding.current = false;
+    toTheTop();
   }
 
   // ── The way back, for a mouse, on a listen opened on its own ────────────
   // Over the journal the sheet has a caret and the pull; opened cold — a
   // reload mid-listen, the installed app — there was no way out a mouse
-  // could make. This is Save draft's own move, then the journal, since there
-  // is nothing behind a cold page to go back to. Drawn for a mouse and never
-  // on a phone (.ses-back, entry.css).
+  // could make. This lowers the listen and goes to the journal, since there
+  // is nothing behind a cold page to go back to — the record stays in hand
+  // and the Listen bar carries it there (2026-10-21; it was Save draft's own
+  // move, which ended the listen, until the session became a sheet). Drawn
+  // for a mouse and never on a phone (.ses-back, entry.css).
   async function backToTheJournal() {
     if (song) {
       try { sessionStorage.removeItem(TRACK_NOTE_KEY); } catch { /* nothing to clear */ }
-    } else if (pending?.album && !(await leave())) return;
+    } else if (pending?.album && !(await lower())) return;
     router.push('/');
   }
 
@@ -624,8 +850,34 @@ export default function SessionPage() {
   }
 
   // No gate on the way forward: the preview is worth a look at any moment,
-  // and saving is what waits for an album note.
+  // and saving is what waits — for the album's stars, since 2026-10-17.
   function forward() { goToStep(step + 1); }
+
+  // ── Back up to the stars, 2026-10-17 ─────────────────────────────────────
+  // What Post? does on a record with no stars, once the preview
+  // has shaken no (SessionPreview). Miyel finishes a listen at the foot of
+  // the tracks, a long way under the record's stars, and saved records with
+  // none; so the listen comes back to them, and they shake once in their turn
+  // so the eye lands where the answer is. A Masterpiece needs nothing more:
+  // the mark is five stars (doSave). Tagged with an attribute rather than a
+  // class, because the row's class is React's to write.
+  function askForStars() {
+    goToStep(0);
+    const el = root.current;
+    const row = el?.querySelector('.ses-record-marks');
+    if (!row) return;
+    const shake = () => {
+      delete row.dataset.asked;
+      void row.offsetWidth;
+      row.dataset.asked = '';
+      setTimeout(() => { delete row.dataset.asked; }, 700);
+    };
+    const box = row.getBoundingClientRect();
+    if (box.top >= 48 && box.bottom <= window.innerHeight - 96) { shake(); return; }
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    (el.closest('.lay') || document.scrollingElement).scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' });
+    setTimeout(shake, still ? 0 : 480);
+  }
 
   function swipeStart(e) {
     if (e.touches.length !== 1) return;
@@ -664,9 +916,9 @@ export default function SessionPage() {
     // would put the record down twice. Opened cold there is no layer and no
     // pull, and since the × came off (2026-09-18) there would otherwise be no
     // way out of the page at all — so the same gesture is honoured here, from
-    // the top of the screen, and `leave` writes the draft exactly as the
-    // sheet's own way out does.
-    if (!layered && from.top && dy > 80 && dy > Math.abs(dx) * 1.5) { leave(); return; }
+    // the top of the screen, and lowers the listen the way the sheet's own
+    // pull does: the draft written, the record kept in hand, home.
+    if (!layered && from.top && dy > 80 && dy > Math.abs(dx) * 1.5) { backToTheJournal(); return; }
     if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
     if (dx < 0) forward(); else goToStep(step - 1);
   }
@@ -708,7 +960,7 @@ export default function SessionPage() {
   }
 
   return (
-    <div className={'ses' + (wide ? ' ses--wide' : '')} ref={root}>
+    <div className={'ses' + (wide ? ' ses--wide' : '') + (typing ? ' ses--typing' : '')} ref={root}>
       {!layered && (
         <button type="button" className="ses-back" onClick={backToTheJournal} aria-label="Back to the journal" title="Back to the journal">
           <CaretLeft size={18} weight="bold" aria-hidden="true" />
@@ -736,6 +988,16 @@ export default function SessionPage() {
             // What its draft already holds, when the song came from one —
             // pressed as a draft, or found again in the search (AlbumPicker).
             written: song.written || null,
+            // The send it came out of, when the inbox opened it on a song
+            // somebody sent (DECISIONS, 2026-10-06: a song send is logged as
+            // a track note): the credit in the row's own words, and which
+            // send to settle once the note is saved.
+            entry_type: song.entryType || '',
+            received_from: song.receivedFrom || '',
+            received_from_url: song.receivedFromUrl || '',
+            received_date: song.receivedDate || '',
+            credit_private: song.creditPrivate === true,
+            submission_id: song.submissionId || null,
           }}
           onSaved={saved => {
             try { sessionStorage.removeItem(TRACK_NOTE_KEY); } catch { /* nothing to clear */ }
@@ -747,27 +1009,57 @@ export default function SessionPage() {
           }}
           onLeave={() => {
             try { sessionStorage.removeItem(TRACK_NOTE_KEY); } catch { /* nothing to clear */ }
-            if (layered) router.back();
-            else setSong(null);
+            // Back to the picker, in the sheet as well, 2026-10-22: ending
+            // anything in the sheet lands on choosing the next thing, the
+            // way Discard and Save draft do; the grip puts it all away.
+            setSong(null);
+            toTheTop();
           }}
         />
       ) : !open ? (
-        <AlbumPicker onPick={pick} onResume={resume} onPickSong={beginTrackNote} />
+        <AlbumPicker onPick={pick} onResume={resume} onPickSong={beginTrackNote} sheet={layered} />
       ) : (
         <>
-          {/* ── The foot: Discard · Save draft · Preview ─────────────────
+          {/* ── The three words: Discard · Save draft · Post ─────────────
               The band the entry's correction bar is (.ln-editing-bar), with
               three words: the one that ends the listen faint, the one that
-              keeps it in ink, the one that goes forward underlined. On a desk
-              the same three sit in a row at the top (.ses-bar). Only on the
-              session: the preview has its own foot, with its own words. */}
+              keeps it in ink, the one that goes forward underlined. In a
+              sheet they are a row under the grip, phone and desk alike
+              (2026-10-22, her pick); opened cold, the foot on a phone and a
+              row at the top on a desk (.ses-bar). Only on the session: the
+              preview has its own foot, with its own words.
+
+              Post, not Preview, 2026-10-17. Miyel: "some people found it
+              confusing that it says preview because they don't really
+              understand what a preview is." The word says where the press
+              leads; the entry as it will look comes up on the way, with a
+              green Post? at its foot (SessionPreview), her pick over posting
+              straight from here.
+
+              ── Doors at the foot, 2026-10-23 ─────────────────────────────
+              Three small words under the grip were easy to read past (Miyel:
+              "it's easy to miss. Can we redesign those as well?"). Her pick
+              of three: on a phone, in a sheet, a raised bar at the foot in
+              the Listen bar's own shape — the sheet came up out of it — with
+              a glyph over one word for each, the way her doors are drawn
+              elsewhere. It bends her pick of 2026-10-22 (the words at the
+              top, for being seen), and the reason that one gave, a longer
+              reach, is what this answers. A desk keeps its row; the glyphs
+              are drawn on the phone's bar only (session.css). */}
           {step === 0 && (
             <div className="ln-editing-bar ses-bar">
               <button type="button" className={'ln-word ses-bar-discard' + (armed ? ' ses-bar-discard--armed' : '')} onClick={discard}>
-                {armed ? 'Discard?' : 'Discard'}
+                <Trash className="ses-bar-glyph" size={21} weight="regular" aria-hidden="true" />
+                <span>{armed ? 'Discard?' : 'Discard'}</span>
               </button>
-              <button type="button" className="ln-word" onClick={saveDraftAndLeave}>Save draft</button>
-              <button type="button" className="ln-word ln-word--on" onClick={() => goToStep(1)}>Preview</button>
+              <button type="button" className="ln-word" onClick={saveDraftAndLeave}>
+                <BookmarkSimple className="ses-bar-glyph" size={21} weight="regular" aria-hidden="true" />
+                <span>Save draft</span>
+              </button>
+              <button type="button" className="ln-word ln-word--on" onClick={() => goToStep(1)}>
+                <PaperPlaneTilt className="ses-bar-glyph" size={21} weight="regular" aria-hidden="true" />
+                <span>Post</span>
+              </button>
             </div>
           )}
 
@@ -775,6 +1067,7 @@ export default function SessionPage() {
             <div className={'ses-page' + (landing ? ' ses-step ses-step--fade' : '')}>
               <AlbumNotes
                 album={s.albumInput} artist={s.artistName} year={s.year} albumArt={s.albumArt}
+                starSize={wide ? 26 : 22}
                 avg={avg} avgShown={avgShown} onReveal={() => setAvgShown(v => !v)}
                 overallNotes={s.overallNotes} setOverallNotes={s.setOverallNotes}
                 rating={s.rating} setRating={s.setRating}
@@ -792,7 +1085,6 @@ export default function SessionPage() {
                 onOpenNote={setNoting}
                 setTrackNotes={s.setTrackNotes}
                 onShutNote={shutNote}
-                onSend={setSendingTrack}
                 onLookAgain={s.lookAgain}
                 onHandTracks={s.takeHandTracks}
               />
@@ -811,6 +1103,8 @@ export default function SessionPage() {
               tracks={s.tracks} trackRatings={s.trackRatings} trackFavorites={s.trackFavorites} trackNotes={s.trackNotes}
               saving={s.saving} saved={s.saved} savedEntry={s.savedEntry}
               doSave={s.doSave}
+              unrated={!s.rating && !s.Masterpiece}
+              onUnrated={askForStars}
               onBack={() => goToStep(0)}
               onAnother={leave}
             />
@@ -834,22 +1128,6 @@ export default function SessionPage() {
         onClose={() => s.setTrouble(null)}
       />
 
-      {/* The send sheet, with the song from the row that was pressed. A
-          popup over the whole page (it portals onto the body), so it is
-          centred on the screen and not on the layer. */}
-      <SendSheet
-        open={Boolean(sendingTrack)}
-        onClose={() => setSendingTrack(null)}
-        record={sendingTrack ? {
-          album: s.albumInput,
-          artist: s.artistName,
-          year: s.year || '',
-          album_art: s.albumArt || '',
-          collection_id: s.collectionIdRef?.current || '',
-          song: sendingTrack.title || '',
-        } : null}
-        foot="Your session stays open behind this"
-      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import database from './database_connection.js';
 import { tidyJournal } from './return_address.js';
 import { create_slug } from './slug_generator.js';
-import { serializeTracks, lookup_key, flawless } from './entry_formatter.js';
+import { serializeTracks, lookup_key, flawless, splitNotes } from './entry_formatter.js';
 import { sizedAlbumArt } from './music_data_api.js';
 import { keep_sat_with } from './needle.js';
 
@@ -98,11 +98,21 @@ export function withoutChain(row) {
 // whether a row has a song: album listens are numbered among album listens,
 // and a track note has no number at all. Counted with it, one song marked in
 // March would have made the record's only listen "Listen 2 of 2".
+//
+// A record is its title, its artist and its year, 2026-10-13. `album_key`
+// folds the first two, and the four digits of `year` stand beside it in every
+// window and every WHERE that means one record (RECORD_YEAR; the wall gathers
+// on the same pair in Journal.js): an artist can put out two records with one
+// name, and the second was being numbered as a relisten of the first. `year`
+// is free text, so the four digits are picked out of it — a POSIX class, not
+// a backslash, so the pattern cannot depend on how the connection reads
+// strings — and a row with no year is its own record under its key.
+const RECORD_YEAR = `COALESCE(substring(year from '[0-9]{4}'), '')`;
 const WITH_LISTEN_NUMBERS = `
   SELECT *,
          (edited_at AT TIME ZONE 'UTC') AS edited_at,
-         CASE WHEN song IS NULL THEN ROW_NUMBER() OVER (PARTITION BY album_key, song IS NULL ORDER BY posted_at, id) END::int AS listen_number,
-         CASE WHEN song IS NULL THEN COUNT(*)     OVER (PARTITION BY album_key, song IS NULL) END::int                        AS listen_total
+         CASE WHEN song IS NULL THEN ROW_NUMBER() OVER (PARTITION BY album_key, ${RECORD_YEAR}, song IS NULL ORDER BY posted_at, id) END::int AS listen_number,
+         CASE WHEN song IS NULL THEN COUNT(*)     OVER (PARTITION BY album_key, ${RECORD_YEAR}, song IS NULL) END::int                        AS listen_total
   FROM entries
 `;
 
@@ -246,6 +256,22 @@ const PUBLIC_FIELDS = [
   'listen_number', 'listen_total', 'credit_by_hand', 'song',
 ];
 
+// ── The records, for the Board, 2026-10-08 ─────────────────────────────────
+// Each record this journal logged, by its album_key, with when it was last
+// logged — track notes left out, since a note about one song is not logging
+// the record. A hundred at most, the most recent first. What the Board's
+// "also on your records" asks the directory about (app/api/board).
+export async function pull_record_keys() {
+  return await database`
+    SELECT album_key, max(posted_at) AS posted_at
+    FROM entries
+    WHERE song IS NULL AND album_key IS NOT NULL AND album_key <> ''
+    GROUP BY album_key
+    ORDER BY max(posted_at) DESC
+    LIMIT 100
+  `;
+}
+
 export async function pull_public_entries() {
   // posted_at carries its zone, so it comes back as the instant it is and the
   // feed needs no workaround — the ::text trick that used to live here was
@@ -296,16 +322,19 @@ export async function pull_public_entries() {
 // the lean-list rule above. It listed the record's own page until that page
 // went, 2026-09-25: a folder opens to an entry, not to a list.
 //
-// By album_key, the same key the wall gathers a tile on, so the folder and
-// the tile it opened from can never disagree about what is behind it.
-export async function pull_album(album_key) {
+// By album_key and year, the pair the wall gathers a tile on (Journal.js,
+// gatherAlbums), so the folder and the tile it opened from can never disagree
+// about what is behind it. `year` is the entry's own, as stored; the four
+// digits are picked out of it here the way RECORD_YEAR does on every row.
+export async function pull_album(album_key, year = '') {
   if (!album_key) return [];
+  const digits = String(year || '').match(/\d{4}/)?.[0] || '';
   const rows = await database.query(
     `SELECT ${[...WALL_FIELDS, ...CREDIT_FIELDS, CREDIT_GUARD].map(f => `"${f}"`).join(', ')}
      FROM (${WITH_LISTEN_NUMBERS}) ranked
-     WHERE album_key = $1
+     WHERE album_key = $1 AND ${RECORD_YEAR} = $2
      ORDER BY posted_at DESC`,
-    [album_key]
+    [album_key, digits]
   );
   return rows.map(row => withoutChain(withSizedArt(row, LIST_ART_PX)));
 }
@@ -321,6 +350,26 @@ export async function pull_entry_by_slug(slug, { includeChain = false } = {}) {
   if (!row) return null;
   const sized = withSizedArt(row, ENTRY_ART_PX);
   return includeChain ? sized : withoutChain(sized);
+}
+
+// ── One note, for a friend's copy, 2026-10-24 ─────────────────────────────
+// The album note of one entry, for a person's page on another copy to show
+// beside its own keeper's (app/api/public/notes/[slug]). One at a time and
+// never a list — a list of records never carries the writing (DECISIONS,
+// What a read costs) — and only what the entry's own page already shows to
+// anybody. Its own narrow read, two columns, so nothing else about the row
+// can ride out with it. Not a track note, which is a song's and not the
+// record's; and nothing for an entry whose credit was kept quiet (the
+// compare brief: a quiet entry "shows nothing at all"), which a reader is
+// given exactly as it is given an entry that is not there.
+export async function pull_public_note(slug) {
+  const result = await database.query(
+    'SELECT slug, notes FROM entries WHERE slug = $1 AND song IS NULL AND credit_private IS NOT TRUE LIMIT 1',
+    [slug]
+  );
+  const row = result[0];
+  if (!row) return null;
+  return { slug: row.slug, note: splitNotes(row.notes).albumNotes };
 }
 
 // Everything here belongs to one person until there are accounts to tell them

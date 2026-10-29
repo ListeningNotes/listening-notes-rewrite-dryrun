@@ -25,6 +25,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { User } from '@phosphor-icons/react';
 import { recallSender, keepSender, journalUrl } from '../../../library/return_address';
+import { useVisiting } from '../Bookplate';
 
 const DRAFTS = 'ln-message-draft:';
 
@@ -57,13 +58,16 @@ export default function MessageForm({
 
   // The cursor is in the field when it opens, so the keyboard is already up.
   // A layout effect, because iOS grants a focus that is still the tap's and a
-  // plain effect runs after the paint, which is past it (SendSheet.js).
+  // plain effect runs after the paint, which is past it (SendSheet.js). The
+  // cursor is placed before the focus, not after: a cursor the page moves
+  // once the keyboard has started is one iOS's corrections can lose track of
+  // (TrackRow.js, 2026-10-17).
   useLayoutEffect(() => {
     const box = field.current;
     if (!box) return;
-    box.focus();
     const end = box.value.length;
     box.setSelectionRange(end, end);
+    box.focus();
   }, []);
 
   function write(value) {
@@ -145,7 +149,15 @@ export default function MessageForm({
 //
 // Left out of the page altogether for the keeper on their own journal, by
 // whoever draws it: there is nobody for them to write to.
+//
+// ── A friend's entry, read inside your own journal, 2026-10-28 ───────────
+// Miyel: a friend's entries open in the app, the way their page does, not
+// on their site. Drawn there, this page is theirs and the reader is you, a
+// keeper writing from your own copy: nobody to ask a name of, and the words
+// go through your outbox to them, about this entry (app/api/outbox), so
+// your side is kept for Words. The page says so (Visiting, Bookplate.js).
 export function MessageWayIn({ slug, keeper = '' }) {
+  const writingTo = useVisiting();
   const [writing, setWriting] = useState(false);
   const [gone, setGone] = useState(false);
   const [name, setName] = useState('');
@@ -177,6 +189,18 @@ export function MessageWayIn({ slug, keeper = '' }) {
   }
 
   async function send(said) {
+    if (writingTo) {
+      const sent = await fetch('/api/outbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: true, person_id: writingTo.person_id, about: writingTo.about, said }),
+      }).catch(() => null);
+      const told = await sent?.json().catch(() => null);
+      if (!sent?.ok || !told?.ok) {
+        return { ok: false, error: told?.error || 'Something went wrong. Nothing was sent, and your words are still here.' };
+      }
+      return { ok: true };
+    }
     if (!name.trim()) return { ok: false, error: 'Add your name, so they know who is writing.' };
     const answer = await fetch('/api/messages', {
       method: 'POST',
@@ -221,7 +245,7 @@ export function MessageWayIn({ slug, keeper = '' }) {
             }}
             onLeave={() => setWriting(false)}
           >
-            {knowMe ? (
+            {writingTo ? null : knowMe ? (
               // Who this is going to be signed by. Not a field and not a
               // label over one: it is a statement, and the only thing to do
               // with it is disagree.

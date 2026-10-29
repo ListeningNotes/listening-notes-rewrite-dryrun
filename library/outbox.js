@@ -36,9 +36,17 @@
 // the form already sends, bar `sender_entry`, and a copy too old to know that
 // word drops it on the floor and stores the rest — which is the whole reason
 // the send is a POST of plain fields rather than anything cleverer.
+//
+// ── A sandbox, 2026-10-17 ─────────────────────────────────────────────────
+// Every write that leaves this copy for another journal or the directory is
+// in this file, and in a sandbox each returns at once without leaving
+// (library/version.js). A new way out belongs here for that reason; one
+// outside it has to ask SANDBOX itself, as the report page does, or a test
+// reaches a real person.
 
 import { pull_settings } from './settings_actions.js';
 import { journalUrl, tidyJournal } from './return_address.js';
+import { DIRECTORY_URL, SANDBOX, SANDBOX_SAID } from './version.js';
 
 // Long enough for a cold serverless copy to wake up, which is the common case:
 // most journals are asleep most of the time, and the first request of the day
@@ -51,6 +59,14 @@ const WAIT_MS = 12000;
 // every case — fix the address, try later, or nothing.
 const NO_ADDRESS = 'There is no address for them in your book.';
 const NO_JOURNAL = 'Your own journal has no address set, so there is nothing to sign the send with. Settings has it.';
+// What a journal at an address with no journal says (answerNoJournal,
+// library/hosting_directory.js; 2026-10-21): a 404 that is JSON. Told from a
+// copy too old to have the route, whose not-found is a page, not JSON.
+const NOBODY_THERE = 'There’s no journal at that address. Nothing was sent.';
+const NOBODY_THERE_FOR_WORDS = 'There’s no journal at that address. Nothing was sent, and your words are still here.';
+function nobodyThere(answer, json) {
+  return answer.status === 404 && json;
+}
 const NO_ANSWER  = 'Their copy did not answer. It may be offline — nothing was sent, and your note is still here.';
 
 // Hand a record over.
@@ -59,13 +75,16 @@ const NO_ANSWER  = 'Their copy did not answer. It may be offline — nothing was
 // every caller's job on a failure is the same: say so and keep what was
 // written. **A send that does not land must never cost somebody their note**
 // (DECISIONS: a dismissed layer must never eat a written message). Nothing is
-// stored on this side either way: what you have sent is only ever known by
-// what comes back through the feed, which is the honest version of that number
-// and the reason there is no outbox table to go stale.
+// stored here: since 2026-10-15 the route that calls this writes a send that
+// landed into the `sent` table (library/sent_actions.js), for the inbox's
+// Sent list. Before then a copy kept no record of what it sent.
 export async function send_record({
   to, album, artist, year = '', note,
   album_art = '', collection_id = '', quiet = false, sender_entry = '', song = '',
 }) {
+  // A sandbox sends nothing (library/version.js); the caller says why and
+  // keeps whatever was written.
+  if (SANDBOX) return { ok: false, error: SANDBOX_SAID };
   const host = tidyJournal(to);
   if (!host) return { ok: false, error: NO_ADDRESS };
 
@@ -105,6 +124,9 @@ export async function send_record({
   }
 
   if (!answer.ok) {
+    if (nobodyThere(answer, (answer.headers.get('content-type') || '').includes('application/json'))) {
+      return { ok: false, error: NOBODY_THERE };
+    }
     // Their copy answered and said no. Their words where they gave any, since
     // they know why better than this does — a rate limit, a missing field, a
     // journal that is not set up. Never their status code: a number is not an
@@ -146,6 +168,9 @@ const TOO_OLD = "Their journal is on an older version and can't take a wave yet.
 const OWN = "That's your own journal.";
 
 export async function send_wave({ to }) {
+  // A sandbox sends nothing (library/version.js); the caller says why and
+  // keeps whatever was written.
+  if (SANDBOX) return { ok: false, error: SANDBOX_SAID };
   const host = tidyJournal(to);
   if (!host) return { ok: false, error: NO_ADDRESS };
 
@@ -170,6 +195,7 @@ export async function send_wave({ to }) {
   }
 
   const json = (answer.headers.get('content-type') || '').includes('application/json');
+  if (nobodyThere(answer, json)) return { ok: false, error: NOBODY_THERE };
   if (answer.status === 404 || !json) return { ok: false, old: true, error: TOO_OLD };
   let body = null;
   try { body = await answer.json(); } catch { /* said it was JSON and was not */ }
@@ -204,6 +230,9 @@ const TOO_OLD_FOR_WORDS = "Their journal is on an older version and can't take a
 const bare = host => String(host || '').replace(/^www\./, '');
 
 export async function send_message({ to, said, about = null, answering = '' }) {
+  // A sandbox sends nothing (library/version.js); the caller says why and
+  // keeps whatever was written.
+  if (SANDBOX) return { ok: false, error: SANDBOX_SAID };
   const host = tidyJournal(to);
   if (!host) return { ok: false, error: NO_ADDRESS };
 
@@ -243,6 +272,7 @@ export async function send_message({ to, said, about = null, answering = '' }) {
   }
 
   const json = (answer.headers.get('content-type') || '').includes('application/json');
+  if (nobodyThere(answer, json)) return { ok: false, error: NOBODY_THERE_FOR_WORDS };
   if (answer.status === 404 || !json) return { ok: false, old: true, error: TOO_OLD_FOR_WORDS };
   let body = null;
   try { body = await answer.json(); } catch { /* said it was JSON and was not */ }
@@ -251,3 +281,69 @@ export async function send_message({ to, said, about = null, answering = '' }) {
   return { ok: false, error: back || 'Their copy would not take the message.' };
 }
 
+// ── Asking the directory, 2026-10-07 ─────────────────────────────────────
+// The fourth thing this copy puts into another, on a keeper's press and
+// through the other copy's own public route, like a send, a wave and a
+// message (AGENTS, Never): asking the registry to list this journal, or to
+// delist it (app/api/directory/listings/route.js; the switch is
+// app/api/listing/route.js). Returns { ok: true, status, ...what it said } or
+// { ok: false, error } in words for the switch, and never throws.
+// Any read of the directory's public list, server to server: the Board's
+// first screen, a search, who else logged some records (app/api/board). The
+// answer as JSON, or null when the directory did not answer.
+export async function ask_directory_read(query) {
+  if (!DIRECTORY_URL) return null;
+  try {
+    const answer = await fetch(`${DIRECTORY_URL}?${query}`, {
+      signal: AbortSignal.timeout(WAIT_MS),
+      headers: { accept: 'application/json' },
+    });
+    if (!answer.ok) return null;
+    return await answer.json();
+  } catch {
+    return null;
+  }
+}
+
+// Which of these hashed addresses are on the Board, and what each is playing
+// (the directory's `?among=`, library/directory_actions.js). A read, server
+// to server, on the keeper's own behalf. Null when the directory did not
+// answer — unknown, which the callers keep apart from nobody.
+export async function ask_directory_among(hashes) {
+  if (!DIRECTORY_URL) return [];
+  if (!hashes.length) return [];
+  try {
+    const answer = await fetch(`${DIRECTORY_URL}?among=${hashes.slice(0, 200).join(',')}`, {
+      signal: AbortSignal.timeout(WAIT_MS),
+      headers: { accept: 'application/json' },
+    });
+    if (!answer.ok) return null;
+    const said = await answer.json();
+    return Array.isArray(said?.journals) ? said.journals : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function ask_directory(method, body) {
+  // A sandbox sends nothing (library/version.js); the caller says why and
+  // keeps whatever was written.
+  if (SANDBOX) return { ok: false, error: SANDBOX_SAID };
+  if (!DIRECTORY_URL) return { ok: false, error: 'This copy has no directory.' };
+  let answer;
+  try {
+    answer = await fetch(`${DIRECTORY_URL.replace(/\/+$/, '')}/listings`, {
+      method,
+      signal: AbortSignal.timeout(WAIT_MS),
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { ok: false, error: 'The directory did not answer. Nothing changed; try again in a minute.' };
+  }
+  let said = null;
+  try { said = await answer.json(); } catch { /* not JSON: a directory too old, or none */ }
+  if (answer.ok && said && !said.error) return { ok: true, status: answer.status, ...said };
+  const why = String(said?.error || '').trim();
+  return { ok: false, status: answer.status, error: why || 'The directory would not take it. Nothing changed.' };
+}

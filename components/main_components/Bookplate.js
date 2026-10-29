@@ -44,6 +44,9 @@ const EMPTY = {
   // can read the build number without pulling the press — and sharp with
   // it — into the browser.
   portrait_code_stale: false,
+  // Whether problem reports land in this journal, worked out on the server
+  // in app/layout.js (library/report_actions.js, takesReports).
+  takes_reports: false,
   rig_icon: null,
   rig: null,
   // Three finished openings; see library/bioprompt.js. Short by design —
@@ -78,4 +81,20 @@ export function Bookplate({ settings, children }) {
       {children}
     </BookplateContext.Provider>
   );
+}
+
+// ── A friend's journal, read inside this one, 2026-10-28 ──────────────────
+// Around a friend's post opened here (app/dashboard/people/[id]/[slug]): who
+// it is — the book's id, their name and address, their page here — what a
+// message from it is about, and Compare, when you have the record too and
+// the post can set your listen beside theirs (ListenCompare.js). The
+// header reads it for their face on the left and Compare on the right
+// (SiteNav.js); the way in to write to them sends through your outbox
+// (MessageForm.js). Null everywhere else.
+const VisitingContext = createContext(null);
+export function Visiting({ value, children }) {
+  return <VisitingContext.Provider value={value}>{children}</VisitingContext.Provider>;
+}
+export function useVisiting() {
+  return useContext(VisitingContext);
 }

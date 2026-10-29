@@ -246,3 +246,560 @@
 /* Opened as a layer over the door there is no nav row above the content, so
    the room reserved for it goes. */
 .get-layered .get-wrap { --get-nav-bottom: 0px; }
+
+/* ══ The directory, 2026-10-07 ═══════════════════════════════════════════
+   app/directory/Directory.js; the reasoning is there. A title, one line
+   about what this is, and the list: each journal its keeper's face in a
+   circle — lit as the book lights it when they are logging — their name,
+   their beacon in the label face, and the record they are on as its cover
+   at the end of the row. The community's two numbers beside the heading,
+   never one beside a person. Hairlines between, as the inbox has them.
+═══════════════════════════════════════════════════════════════════════ */
+.dir-screen { min-height: 100vh; background: var(--bg); }
+.dir-wrap {
+  max-width: 520px; margin: 0 auto;
+  padding: calc(80px + var(--safe-top) + 20px) 24px 96px;
+}
+.dir-title {
+  margin: 0; text-align: center;
+  font-family: var(--font-display); font-weight: var(--font-display-weight, 700);
+  font-size: 40px; letter-spacing: -0.02em; color: var(--ink);
+}
+.dir-lede {
+  margin: 12px auto 0; max-width: 30em; text-align: center;
+  font-size: 15px; line-height: 1.55; color: var(--ink-soft);
+}
+/* ── The Board, 2026-10-08 ─────────────────────────────────────────────
+   Miyel's Board brief: the one note, the search, the band (the Friends
+   room's own, forms.css .fr-now), and the sections by distance, each a
+   label in the label face with a line under it. Nothing here is a pill:
+   Shuffle is a word with a glyph, Add is a door under a row. */
+.dir-note {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin: 0 0 18px; padding: 15px 16px 14px;
+  border-radius: 18px;
+  background: var(--panel-strong);
+}
+.dir-note-words { flex: 1; min-width: 0; }
+.dir-note-head {
+  margin: 0 0 4px;
+  font-family: var(--font-display); font-weight: var(--font-display-weight, 700);
+  font-size: 15px; color: var(--ink);
+}
+.dir-note-said { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); }
+.dir-note-off {
+  font-family: var(--font-label);
+  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-soft); text-decoration: none;
+}
+.dir-note-x {
+  display: inline-flex; padding: 2px; margin: -2px -4px 0 0;
+  border: 0; background: none; color: var(--ink-faint); cursor: pointer;
+}
+@media (hover: hover) {
+  .dir-note-off:hover, .dir-note-x:hover { color: var(--ink); }
+}
+.dir-search {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 22px; padding: 11px 13px;
+  border: 1px solid var(--border); border-radius: 13px;
+  background: var(--panel-strong);
+  color: var(--ink-faint);
+}
+.dir-search input {
+  flex: 1; min-width: 0;
+  border: 0; background: none; outline: none;
+  font: inherit; font-size: 15px; color: var(--ink);
+}
+.dir-search input::placeholder { color: var(--ink-faint); }
+/* The browser's own clear mark, in the page's ink rather than its blue. */
+.dir-search input::-webkit-search-cancel-button { filter: grayscale(1); opacity: 0.45; cursor: pointer; }
+.dir-band-quiet {
+  margin: 0; padding: 4px 2px 22px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-label);
+  font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dir-section { margin-top: 26px; }
+.dir-label {
+  margin: 0 0 6px; padding: 0 2px;
+  font-family: var(--font-label); font-weight: 400;
+  font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dir-sub { margin: 0 0 8px; padding: 0 2px; font-size: 13px; line-height: 1.55; color: var(--ink-soft); }
+.dir-shuffle {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding: 0 2px;
+}
+.dir-shuffle-of {
+  font-family: var(--font-label);
+  font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dir-shuffle-go {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 2px; border: 0; background: none; cursor: pointer;
+  font-family: var(--font-label);
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.dir-shuffle-go:disabled { opacity: 0.5; cursor: default; }
+@media (hover: hover) { .dir-shuffle-go:hover:not(:disabled) { color: var(--ink); } }
+
+/* ── Records on the Board, piece three, 2026-10-08 ─────────────────────
+   "Also on your records": a card per record — the cover, the title, when
+   the keeper logged it — and under it the strangers who logged it too, each
+   a name, a line of what they wrote, their stars and their marks. "Being
+   logged everywhere": a wall of covers, three across, each with how many
+   keepers logged it in the last day and a check when the viewer did too. A
+   pressed cover opens the app's own sheet (forms.css, .sn-sheet). */
+.dir-shared {
+  margin-top: 12px;
+  border: 1px solid var(--border); border-radius: 15px;
+  background: var(--panel-strong);
+  overflow: hidden;
+}
+.dir-shared-top { display: flex; align-items: center; gap: 12px; padding: 13px; }
+.dir-shared-words { display: flex; flex-direction: column; min-width: 0; }
+.dir-shared-title {
+  font-family: var(--font-display); font-weight: var(--font-display-weight, 700);
+  font-size: 15px; line-height: 1.25; color: var(--ink);
+}
+.dir-shared-by { margin-top: 1px; font-size: 13px; color: var(--ink-soft); }
+.dir-shared-mine {
+  margin-top: 5px;
+  font-family: var(--font-label);
+  font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dir-shared-list { border-top: 1px solid var(--border); }
+.dir-keeper {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  width: 100%; box-sizing: border-box;
+  padding: 11px 13px;
+  border: 0; border-top: 1px solid var(--border); background: none;
+  font: inherit; text-align: left; color: inherit; text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dir-shared-list > :first-child > .dir-keeper,
+.dir-shared-list > .dir-keeper:first-child,
+.dir-sheet-list > :first-child > .dir-keeper,
+.dir-sheet-list > .dir-keeper:first-child { border-top: 0; }
+.dir-keeper-name {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-display); font-weight: var(--font-display-weight, 700);
+  font-size: 14px; color: var(--ink);
+}
+.dir-keeper-check { color: var(--ink-soft); }
+.dir-line { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.dir-keeper-marks { display: flex; align-items: center; gap: 8px; margin-top: 2px; color: var(--gold, #e3b341); }
+.dir-keeper-item--open > .dir-keeper { padding-bottom: 4px; }
+.dir-keeper-item .dir-doors { border-bottom: 0; padding-bottom: 12px; }
+.dir-wall {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px;
+  margin-top: 4px;
+}
+.dir-wall--found { margin-top: 18px; }
+.dir-tile {
+  position: relative; display: block;
+  aspect-ratio: 1; padding: 0;
+  border: 0; border-radius: 8px; overflow: hidden;
+  background: var(--bg-warm);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dir-tile-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+.dir-tile-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dir-tile-pin {
+  position: absolute; left: 6px; bottom: 6px;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 7px 3px 6px; border-radius: 8px;
+  background: rgba(10, 10, 10, 0.62);
+  font-family: var(--font-label);
+  font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #fff;
+}
+.dir-tile-pin .fr-on-dot { width: 6px; height: 6px; box-shadow: none; }
+.dir-tile-yours {
+  position: absolute; right: 6px; top: 6px;
+  width: 17px; height: 17px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--border);
+}
+@media (hover: hover) { .dir-tile:hover .dir-tile-art { opacity: 0.85; } }
+.dir-sheet { padding-bottom: calc(18px + var(--safe-bottom, 0px)); }
+.dir-sheet-head {
+  display: flex; align-items: center; gap: 13px;
+  padding: 4px 20px 15px;
+  border-bottom: 1px solid var(--border);
+}
+.dir-sheet-art { width: 62px; height: 62px; }
+.dir-sheet-words { display: flex; flex-direction: column; min-width: 0; }
+.dir-sheet-title {
+  font-family: var(--font-display); font-weight: var(--font-display-weight, 700);
+  font-size: 17px; line-height: 1.2; color: var(--ink);
+}
+.dir-sheet-by { margin-top: 2px; font-size: 13px; color: var(--ink-soft); }
+.dir-sheet-list { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; padding: 0 7px; }
+.dir-sheet-foot {
+  display: flex; flex-direction: column; gap: 6px;
+  margin: 0; padding: 15px 20px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px; line-height: 1.5; color: var(--ink-soft);
+}
+.dir-sheet-foot .dir-label { padding: 0; margin: 0; }
+
+/* A journal: face, who and what, and the cover. A link for a visitor, a
+   button that opens its doors for the keeper, a plain row for the keeper's
+   own — the same row each time. */
+.dir-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  width: 100%; box-sizing: border-box;
+  margin: 0;
+  padding: 16px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit; text-align: left;
+  color: inherit; text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.dir-row--own { cursor: default; }
+.dir-end { display: inline-flex; align-items: center; gap: 12px; }
+/* The keeper's one mark at the end of a row: a check for somebody already
+   in the book, YOU on their own row. */
+.dir-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px;
+  color: var(--ink-soft);
+}
+.dir-mark--you {
+  width: auto;
+  font-family: var(--font-label);
+  font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+/* A row opened: its doors under it, the book's own (.fr-door), and the
+   hairline moves below them. */
+.dir-item--open > .dir-row { border-bottom-color: transparent; }
+.dir-doors {
+  padding: 2px 0 16px;
+  border-bottom: 1px solid var(--border);
+  animation: hn-say-in 0.2s ease both;
+}
+.dir-said {
+  margin: 10px 0 0; text-align: center;
+  font-size: 13px; line-height: 1.5; color: var(--ink-soft);
+}
+
+@media (hover: hover) { .dir-row:not(.dir-row--own):hover { opacity: 0.72; } }
+.dir-face { position: relative; width: 52px; height: 52px; }
+.dir-face-in {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  border-radius: 50%; overflow: hidden;
+  background: var(--panel);
+  color: var(--ink-faint);
+}
+.dir-face-in img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+  pointer-events: none;
+}
+/* Logging right now: the book's ring and dot, the same green and the same
+   place on the circle (forms.css, .fr-one--live). */
+.dir-face--live .dir-face-in { box-shadow: 0 0 0 1.5px var(--live-deep); }
+.dir-face--live::after {
+  content: '';
+  position: absolute; z-index: 1;
+  right: calc(14.64% - 6px); bottom: calc(14.64% - 6px);
+  width: 12px; height: 12px; box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--live);
+  border: 2.5px solid var(--bg);
+}
+.dir-who { display: flex; flex-direction: column; min-width: 0; }
+.dir-name {
+  font-family: var(--font-display); font-weight: var(--font-display-weight, 700);
+  font-size: 17px; line-height: 1.3; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dir-name--none { font-size: 15px; color: var(--ink-soft); }
+/* The path to somebody a friend away, under their name: "Through Dez and
+   Wren". In the reading face, quiet, the way a line of somebody's own words
+   would sit — it is about them, not a label on them. */
+.dir-through { margin-top: 2px; font-size: 13px; color: var(--ink-soft); }
+.dir-state {
+  margin-top: 3px;
+  font-family: var(--font-label);
+  font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dir-state--live { color: var(--ink-soft); }
+.dir-rec-title {
+  margin-top: 6px;
+  font-size: 14.5px; font-weight: 600; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dir-rec-by {
+  font-size: 13px; color: var(--ink-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dir-cover {
+  width: 56px; height: 56px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  background: var(--bg-warm);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-faint);
+}
+.dir-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dir-quiet {
+  margin: 40px 0 0; text-align: center;
+  font-family: var(--font-label);
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dir-keeps {
+  margin: 56px 0 0; padding-top: 22px;
+  border-top: 1px solid var(--border);
+  font-size: 13px; line-height: 1.6; color: var(--ink-faint);
+}
+.dir-keeps b { color: var(--ink-soft); font-weight: var(--font-display-weight, 700); }
+.dir-get {
+  display: inline-block; margin-top: 14px;
+  font-family: var(--font-label);
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-soft); text-decoration: none;
+}
+@media (hover: hover) { .dir-get:hover { color: var(--ink); } }
+@media (prefers-reduced-motion: reduce) {
+  .dir-row { transition: none; }
+}
+
+/* ── The front door, 2026-10-20 ─────────────────────────────────────────────
+   components/main_components/FrontDoor.js: the mark, a line, two doors, the
+   places left; and Choose your address. Centred like the holding page, the
+   doors in the Friends pane's own shape (a glyph over its words). */
+.fd-page {
+  min-height: 100dvh; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; padding: 32px 20px; text-align: center;
+  background: var(--bg); color: var(--ink);
+}
+.fd-mark { line-height: 0; margin-bottom: 6px; }
+.fd-logo { width: 92px; height: auto; display: block; }
+.fd-logo path, .fd-logo circle { fill: var(--ink); }
+.fd-h { margin: 0; font-family: var(--font-display); font-weight: var(--font-display-weight, 700); font-size: 22px; color: var(--ink); }
+/* Who invited them, over Choose your address (Invite, 2026-10-21): a face
+   in a circle and "[Name] invited you". The plain face sits under the
+   picture and shows when it does not load. */
+.fd-invite {
+  margin: 0; display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-sans); font-size: 15px; line-height: 1.4; color: var(--ink);
+}
+.fd-invite-face {
+  position: relative; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%;
+  overflow: hidden; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--panel); color: var(--ink-faint);
+}
+.fd-invite-face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fd-places {
+  margin: 0; font-family: var(--font-label); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+/* The address sits in the middle of its box as one line: the name's slot
+   is sized to what is in it (FrontDoor.js), and may shrink, scrolling
+   inside, when a long name meets a narrow phone. */
+.fd-field {
+  display: flex; align-items: baseline; justify-content: center; width: 100%; max-width: 340px; box-sizing: border-box;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 13px; font-family: var(--font-label); font-size: 14px; transition: border-color 0.15s;
+  cursor: text;
+}
+.fd-field:focus-within { border-color: var(--ink-faint); }
+.fd-field input {
+  flex: 0 1 auto; min-width: 0; border: 0; outline: none; background: none; padding: 0;
+  color: var(--ink); font: inherit; text-align: right;
+}
+.fd-field input::placeholder { color: var(--ink-faint); }
+.fd-domain { flex: 0 0 auto; color: var(--ink-faint); }
+.fd-state { margin: 0; min-height: 1.6em; font-family: var(--font-sans); font-size: 13px; color: var(--ink-soft); }
+/* Available and Not available, each with its mark (Miyel, 2026-10-20:
+   green with a check in a circle, and a matching emblem in red). */
+.fd-yes, .fd-no { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.fd-yes { color: var(--live-deep); }
+.fd-no { color: var(--fav); }
+/* Create my journal: setup's own button (.su-go, forms.css), held to the
+   field's width rather than the page's. */
+.fd-go { max-width: 340px; margin-top: 4px; }
+/* The steps a journal is made in, each ticked as it really finishes
+   (Miyel's pick, 2026-10-20). */
+.fd-steps {
+  list-style: none; margin: 6px 0 0; padding: 0; width: 100%; max-width: 260px;
+  display: flex; flex-direction: column; gap: 12px; text-align: left;
+  font-family: var(--font-sans); font-size: 14px;
+}
+.fd-step { display: flex; align-items: center; gap: 10px; color: var(--ink-faint); transition: color 0.3s; }
+.fd-step--now { color: var(--ink); }
+.fd-step--done { color: var(--ink); }
+.fd-step--done svg { color: var(--live-deep); }
+.fd-spin {
+  width: 14px; height: 14px; margin: 2px; flex: none; border-radius: 999px;
+  border: 2px solid var(--border); border-top-color: var(--ink);
+  animation: fd-turn 0.9s linear infinite;
+}
+@keyframes fd-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .fd-spin { animation: none; border-color: var(--ink); }
+}
+.fd-trouble { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--ink-soft); max-width: 34ch; }
+.fd-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The open book with a plus on its corner (Miyel: "the book and a plus
+   sign"): Visit's book, so starting a journal and visiting one wear the same
+   mark. */
+.fd-bookplus { position: relative; display: inline-flex; }
+.fd-plus {
+  position: absolute; right: -6px; bottom: -4px;
+  width: 13px; height: 13px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ink); color: var(--bg); box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* ── The masthead and the record wall, 2026-10-22 ─────────────────────────────
+   Miyel's pick of three looks (FrontDoor.js): the mark and the doors at the
+   top, and the record wall under them, edge to edge and off the bottom of
+   the screen, fading in a little below the journals left (her ask: "a little
+   more space" there). Each column drifts up at its own pace and every other
+   one sits half a cover higher. The page is exactly the screen's height, so
+   the wall gives way as a door unfolds. With no covers the mark and the
+   doors stand alone in the middle. */
+.fd-mast { height: 100dvh; min-height: 0; overflow: hidden; justify-content: flex-start; gap: 0; padding: 0; }
+.fd-mast--bare { justify-content: center; }
+.fd-mast-head {
+  flex: none; width: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 60px 20px 30px;
+}
+.fd-mast--bare .fd-mast-head { padding: 32px 20px; }
+.fd-mast .fd-logo { width: 124px; }
+.fd-wall {
+  flex: 1 1 auto; min-height: 0; width: 100%; box-sizing: border-box; overflow: hidden;
+  /* flex-start, or each column is only as tall as the wall and moves by a
+     third of that rather than by one round of its covers. */
+  display: flex; align-items: flex-start; gap: 8px; padding: 0 8px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+}
+.fd-wall-col {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
+  animation: fd-rise 150s linear infinite;
+}
+/* Half a cover higher: a cover is a third of the wall's width after its two
+   gaps. Higher rather than lower, so the top of the column is never seen. */
+.fd-wall-col:nth-child(even) { margin-top: calc((16px - 100%) / 6); }
+.fd-wall-col:nth-child(2) { animation-duration: 196s; }
+.fd-wall-col:nth-child(3) { animation-duration: 168s; }
+.fd-wall-col:nth-child(4) { animation-duration: 210s; }
+.fd-wall-col:nth-child(5) { animation-duration: 158s; }
+.fd-wall-col:nth-child(6) { animation-duration: 188s; }
+.fd-wall-col:nth-child(7) { animation-duration: 176s; }
+.fd-wall-col:nth-child(8) { animation-duration: 202s; }
+.fd-wall-col:nth-child(9) { animation-duration: 162s; }
+.fd-wall-col:nth-child(10) { animation-duration: 192s; }
+.fd-wall-col:nth-child(n+4) { display: none; }
+/* Each cover carries its own space under it, so a third of a column is
+   exactly one round. */
+.fd-wall-cover {
+  width: 100%; aspect-ratio: 1; object-fit: cover; display: block;
+  margin-bottom: 8px; border-radius: 10px; background: var(--panel);
+}
+@keyframes fd-rise { to { transform: translateY(calc(-100% / 3)); } }
+@media (min-width: 769px) {
+  .fd-wall { gap: 12px; padding: 0 12px; }
+  .fd-wall-col:nth-child(n+4) { display: flex; }
+  .fd-wall-col:nth-child(n+9) { display: none; }
+  .fd-wall-col:nth-child(even) { margin-top: calc((84px - 100%) / 16); }
+  .fd-wall-cover { margin-bottom: 12px; border-radius: 12px; }
+}
+@media (min-width: 1600px) {
+  .fd-wall-col:nth-child(n+9) { display: flex; }
+  .fd-wall-col:nth-child(even) { margin-top: calc((108px - 100%) / 20); }
+}
+
+/* The doors open where they are (FrontDoor.js, Doors): both stay; the one
+   open is lit on the site's raised surface and the other goes quiet; what it
+   opens unfolds under them from that door's side, the site's fold (a grid
+   row from 0fr to 1fr, About.js's prompt list), on the site's curve. */
+.fd-doors-all { display: flex; flex-direction: column; align-items: center; width: 100%; }
+/* Its own row and its own doors, not the Friends doors' (.fr-doors-row,
+   .fr-door): that sheet loads after this one, so its spacing and its
+   transition won over these. Drawn the same: a glyph over a word in the
+   display face. */
+.fd-doors {
+  display: flex; align-items: flex-start; justify-content: center; gap: 20px;
+  width: 100%; max-width: 340px; margin-top: 6px;
+}
+.fd-door {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 8px;
+  border: 0; border-radius: 18px; background: transparent; padding: 10px 16px;
+  color: var(--ink); text-decoration: none; cursor: pointer;
+  font-family: var(--font-display); font-weight: var(--font-display-weight, 700);
+  font-size: 13px; white-space: nowrap;
+  transition: background-color 0.24s ease, opacity 0.24s ease;
+}
+/* Only where there is a pointer to hover with: a phone keeps :hover on what
+   was last tapped. */
+@media (hover: hover) { .fd-door:hover { opacity: 0.65; } }
+.fd-door--lit { background: var(--panel); }
+.fd-doors--lit .fd-door:not(.fd-door--lit) { opacity: 0.45; }
+.fd-fold {
+  display: grid; grid-template-rows: 0fr; width: 100%; max-width: 340px;
+  transition: grid-template-rows 0.34s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.fd-fold--open { grid-template-rows: 1fr; }
+.fd-fold-in {
+  min-height: 0; overflow: hidden; opacity: 0;
+  transition: opacity 0.22s ease, transform 0.34s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.fd-fold--start .fd-fold-in { transform: translateX(-18px); }
+.fd-fold--find .fd-fold-in { transform: translateX(18px); }
+.fd-fold--open .fd-fold-in { opacity: 1; transform: none; transition-delay: 0.06s, 0s; }
+/* Both folds keep one rhythm: a heading, the address, a line for what it
+   is, and the black button. Spaced here rather than by setup's own margins
+   (.su-go loads after this sheet and would win). */
+.fd-fold-body {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 16px 2px 4px;
+}
+.fd-caption {
+  margin: 0 0 10px; font-family: var(--font-label); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft);
+}
+.fd-fold-body .fd-invite { margin-bottom: 14px; }
+.fd-fold-body .fd-state { margin: 8px 0 6px; text-align: center; }
+/* One word on it now (Create, Open), so no wider than it needs to be
+   (Miyel, 2026-10-22); both the same width, so it holds still as the doors
+   switch. */
+.fd-fold-body .fd-go { margin-top: 0; width: 160px; }
+.fd-fold-body .fd-steps { margin-top: 12px; }
+.fd-fold-body .fd-trouble { margin-top: 10px; }
+.fd-doors-all .fd-places { margin-top: 16px; }
+/* Start a journal with no good ticket (FrontDoor.js, HandedOut): the old
+   /get's two lines, a size down to sit under the doors. */
+.fd-fold-body .fd-handed-said { font-size: 18px; }
+.fd-fold-body .get-handed-ask { margin-top: 8px; font-size: 14px; }
+@media (prefers-reduced-motion: reduce) {
+  .fd-wall-col { animation: none; }
+  .fd-door, .fd-fold, .fd-fold-in { transition: none; }
+}

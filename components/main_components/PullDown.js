@@ -32,14 +32,13 @@
 // `scroller` is a ref to the element that scrolls; `onPull` is what asking
 // means there and may return a promise; `asking` is the line while it does.
 //
-// ── The logo turns, 2026-11-07 ──────────────────────────────────────────
-// On a phone, where the top row wears the LN. mark, the strip under it goes
-// (Miyel: "have the actual logo spin to show its loading rather than the bar
-// under the header"). The mark turns with the finger as the page is pulled,
-// and spins while asking; the page springs back rather than holding a gap.
-// Told through the root, `data-pull` and `--pull-turn` (nav.css), so the
-// row needs to know nothing about who is pulling. A desk has no row, and
-// keeps the strip.
+// ── Whole turns, 2026-11-07 ─────────────────────────────────────────────
+// The strip's mark turns once let go, smoothly, coming to rest upright, and
+// again while the answer is still out — whole turns only, so it never stops
+// partway round; the strip holds the page down until then. Tried and let go
+// the same day: the top row's own logo turning in the strip's place, with
+// the finger and as a boomerang — Miyel came back to "the original LN
+// refresh", tweaked.
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -57,19 +56,15 @@ const STILL = 6;
 
 const WORDS = { idle: '', pulling: 'Pull down', release: 'Let go to refresh', asking: '' };
 
-// Whether the top row's mark is standing in for the strip.
-const onTheRow = () => typeof document !== 'undefined'
-  && Boolean(document.querySelector('.hdr-mark')?.offsetWidth);
-// The mark's turn, on the root, for the row to read.
-function turn(phase, dy = 0) {
-  const root = document.documentElement;
-  if (phase === 'idle') {
-    root.removeAttribute('data-pull');
-    root.style.removeProperty('--pull-turn');
-    return;
-  }
-  root.setAttribute('data-pull', phase);
-  root.style.setProperty('--pull-turn', `${Math.round(Math.min(1, dy / FAR_ENOUGH) * 360)}deg`);
+// One turn of the mark.
+const TURN_MS = 900;
+
+// Once round, upright to upright. Resolves when it has come to rest.
+function spinOnce(mark) {
+  if (!mark?.animate) return new Promise(resolve => setTimeout(resolve, TURN_MS));
+  return mark
+    .animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: TURN_MS, easing: 'ease-in-out' })
+    .finished.catch(() => {});
 }
 
 // `mark` is the site's mark, drawn by whoever mounts this (the cross draws
@@ -77,6 +72,7 @@ function turn(phase, dy = 0) {
 export default function PullDown({ scroller, onPull, asking = 'Checking\u2026', mark = null }) {
   const [phase, setPhase] = useState('idle');
   const drag = useRef(null);
+  const markRef = useRef(null);
   const busy = useRef(false);
   // What asking means, kept current without re-wiring the listeners each
   // time the caller re-renders.
@@ -113,22 +109,31 @@ export default function PullDown({ scroller, onPull, asking = 'Checking\u2026', 
       if (document.documentElement.classList.contains('ln-locked')) return false;
       const typing = document.activeElement;
       if (typing && (typing.tagName === 'TEXTAREA' || typing.tagName === 'INPUT' || typing.isContentEditable)) return false;
-      if (target?.closest?.('input, textarea, [role="slider"], [data-slide], .fr-now-row, .fr-live, .ps-found, .ps-row')) return false;
+      // The rows of cards and faces that scroll sideways used to be left out
+      // here, which on Friends was most of the top of the screen, so a pull
+      // took only where the finger happened to land between them (Miyel,
+      // 2026-11-07: "not working on friends consistently"). They pull now,
+      // and a drag that goes sideways first is theirs (move, below).
+      if (target?.closest?.('input, textarea, [role="slider"], [data-slide]')) return false;
       return true;
     };
 
     const asks = async () => {
       setPhase('asking');
-      turn('asking');
       busy.current = true;
-      room(onTheRow() ? 0 : ROOM, still());
+      room(ROOM, still());
       const began = Date.now();
-      try { await ask.current?.(); } catch { /* the line goes either way */ }
+      let answered = false;
+      const asked = Promise.resolve().then(() => ask.current?.()).catch(() => {}).finally(() => { answered = true; });
+      if (!still()) {
+        // Once round, then again while the answer is still out.
+        do { await spinOnce(markRef.current); } while (!answered);
+      }
+      await asked;
       const left = SEEN_MS - (Date.now() - began);
       if (left > 0) await new Promise(resolve => setTimeout(resolve, left));
       busy.current = false;
       setPhase('idle');
-      turn('idle');
       room(0, still());
     };
     const quit = () => {
@@ -136,16 +141,22 @@ export default function PullDown({ scroller, onPull, asking = 'Checking\u2026', 
       el.style.userSelect = '';
       room(0, false);
       setPhase('idle');
-      turn('idle');
     };
 
-    const begin = (y, target) => {
-      drag.current = allowed(target) ? { y, target, far: false, moved: false } : null;
+    const begin = (y, target, x = 0) => {
+      drag.current = allowed(target) ? { y, x, target, far: false, moved: false, way: null } : null;
       return Boolean(drag.current);
     };
-    const move = y => {
+    const move = (y, x) => {
       const d = drag.current;
       if (!d) return;
+      // Which way the drag went first decides it: sideways is a row's scroll.
+      if (!d.way) {
+        const across = Math.abs(x - d.x), down = Math.abs(y - d.y);
+        if (Math.max(across, down) < STILL) return;
+        d.way = across > down ? 'across' : 'down';
+      }
+      if (d.way === 'across') { drag.current = null; return; }
       // The pane, or something inside it, began to scroll after all: this
       // was never a pull.
       if (el.scrollTop > 0 || inside(d.target)) { quit(); return; }
@@ -160,16 +171,14 @@ export default function PullDown({ scroller, onPull, asking = 'Checking\u2026', 
       // negative scrollTop; the room makes up the rest, so the page moves
       // once, at half the finger, whichever of the two is doing it.
       room(dy + Math.min(0, el.scrollTop), true);
-      const now = dy <= 0 ? 'idle' : d.far ? 'release' : 'pulling';
-      setPhase(now);
-      turn(now, dy);
+      setPhase(dy <= 0 ? 'idle' : d.far ? 'release' : 'pulling');
     };
     const end = async () => {
       const d = drag.current;
       drag.current = null;
       el.style.userSelect = '';
       if (!d) return;
-      if (!d.far) { room(0, false); setPhase('idle'); turn('idle'); return; }
+      if (!d.far) { room(0, false); setPhase('idle'); return; }
       await asks();
     };
 
@@ -178,9 +187,9 @@ export default function PullDown({ scroller, onPull, asking = 'Checking\u2026', 
     // until it has moved: only then is the pointer held, and the page's
     // words kept from being selected, so a face or a door pressed with a
     // mouse is still a press on that face or door.
-    const touchStart = e => { if (e.touches.length === 1) begin(e.touches[0].clientY, e.target); else drag.current = null; };
-    const touchMove = e => { if (e.touches.length === 1) move(e.touches[0].clientY); };
-    const pointerDown = e => { if (e.pointerType === 'mouse' && e.button === 0) begin(e.clientY, e.target); };
+    const touchStart = e => { if (e.touches.length === 1) begin(e.touches[0].clientY, e.target, e.touches[0].clientX); else drag.current = null; };
+    const touchMove = e => { if (e.touches.length === 1) move(e.touches[0].clientY, e.touches[0].clientX); };
+    const pointerDown = e => { if (e.pointerType === 'mouse' && e.button === 0) begin(e.clientY, e.target, e.clientX); };
     const pointerMove = e => {
       if (e.pointerType !== 'mouse') return;
       const d = drag.current;
@@ -192,7 +201,7 @@ export default function PullDown({ scroller, onPull, asking = 'Checking\u2026', 
         window.getSelection?.()?.removeAllRanges();
         try { el.setPointerCapture(e.pointerId); } catch { /* no capture, still a pull */ }
       }
-      move(e.clientY);
+      move(e.clientY, e.clientX);
     };
     const pointerUp = e => { if (e.pointerType === 'mouse') end(); };
     el.addEventListener('touchstart', touchStart, { passive: true });
@@ -215,14 +224,13 @@ export default function PullDown({ scroller, onPull, asking = 'Checking\u2026', 
       el.style.removeProperty('--pull-room');
       el.style.removeProperty('--pull-ease');
       el.style.userSelect = '';
-      if (busy.current || drag.current) turn('idle');
     };
   }, [scroller]);
 
   const words = phase === 'asking' ? asking : WORDS[phase];
   return (
     <div className={'ln-pull ln-pull--' + phase} role="status" aria-live="polite">
-      {mark && <span className="ln-pull-mark" aria-hidden="true">{mark}</span>}
+      {mark && <span className="ln-pull-mark" ref={markRef} aria-hidden="true">{mark}</span>}
       <span className="ln-pull-say">{words}</span>
     </div>
   );

@@ -4,100 +4,114 @@
 // The bar at the foot of the entry while it is being printed.
 //
 // The same fixed bar the correction mode wears, with the printer's things on
-// it in three rows: the ground under the card (three dots, also turned by a
-// sideways swipe on the screen); the paper's size, which the paper on screen
-// takes at once (Miyel, 2026-09-13: the other sizes have to be seen, not
-// only saved); and Save and Done. Save is the share sheet on a phone — Save
-// Image and Instagram are on it — and a download elsewhere; the entry's
-// address goes to the clipboard with it. (A Copy link button lived here for
-// an afternoon; the cover on the entry page already copies the address.)
+// it: words picking what is being changed, when there is more than one thing to
+// change, and one row of choices under them.
+// No pills: a word with a line under the one that is on, a glyph over a word.
+// Save is the one big black button, and the way back an X at the top left (Miyel, 2026-11-03).
+//
+// `final` is the pop-up: the finished print over the page, with the button
+// that hands it over. The address went to the clipboard with Save. (A Copy
+// link button lived here for an afternoon; the cover on the entry page
+// already copies the address.)
 'use client';
 
 import { createPortal } from 'react-dom';
-import { CaretLeft, DownloadSimple, X } from '@phosphor-icons/react';
-import { FRAME_ORDER, FRAMES } from '../SharePrinter';
+import { DownloadSimple, Export, X } from '@phosphor-icons/react';
 
-export default function PrintBar({ grounds, ground, onGround, size, onSize, onSave, onDone, status, final = false, onBack, onDeliver, canDeliver = false }) {
+export default function PrintBar({ sections = [], tab = null, onTab, away = false, onSave, onDone, status, final = false, inBar = false, saving = false, picture = null, clip = null, canSend = false, onBack, onDeliver, canDeliver = false }) {
   // Portalled onto the body: the paper sets its own colours on the box it
   // sits in, and the bar is the page's, not the paper's — it keeps the
   // site's theme whatever ground the card is on (Miyel, 2026-09-13).
   if (typeof document === 'undefined') return null;
-  // The final picture is up: nothing to choose, only the way back. Holding
-  // the picture is what saves it, and the line under the bar says so.
-  // What the bar says — the hint, Copied, hold-to-save — goes at the TOP of
-  // the bar: on the home screen the bar reaches below the viewport to meet
-  // the screen's foot, and a last line down there is a line nobody sees
-  // (Miyel's phone, 2026-09-13).
-  if (final) {
-    // The final picture is up: nothing to choose — the way back, and the
-    // tap that hands the picture over (the share sheet, or a download). A
-    // phone with no sheet holds the picture instead, and the line says so.
+  // A phone with no sheet holds the picture to save it, and the line says so:
+  // no button then, only Close.
+  // Made and ready: with somewhere to send it, the bar itself says so and offers it, over
+  // the same print, rather than a screen of its own (Miyel, 2026-11-07).
+  if (final && inBar && canDeliver) {
     return createPortal(
-      <div className="ln-print-bar" role="toolbar" aria-label="Your print">
-        <div className="ln-print-said" aria-live="polite">{status}</div>
-        <div className="ln-print-row">
-          <button type="button" className="ln-pin" onClick={onBack}>
-            <CaretLeft size={13} weight="bold" aria-hidden="true" />
-            <span>Back to the card</span>
-          </button>
-          {canDeliver && (
-            <button type="button" className="ln-pin ln-pin--on" onClick={onDeliver}>
-              <DownloadSimple size={13} weight="bold" aria-hidden="true" />
-              <span>Save</span>
-            </button>
-          )}
+      <div className="ln-print-bar ln-print-bar--ready" role="toolbar" aria-label="Your print is ready">
+        <div className="ln-print-told" aria-live="polite">
+          {status && <strong>{status}</strong>}
+          <span>{canSend ? 'Share it to your story, then add a Link sticker and paste.' : 'Download it, post it, then add your link.'}</span>
+        </div>
+        <button type="button" className="ln-print-save" onClick={onDeliver}>
+          {canSend ? <Export size={19} aria-hidden="true" /> : <DownloadSimple size={19} aria-hidden="true" />}
+          <span>{canSend ? 'Share' : 'Download'}</span>
+        </button>
+        {/* Done, once it is shared: back to the post, the printer put away (Miyel, 2026-11-07). */}
+        <div className="ln-print-after">
+          <button type="button" className="ln-print-word" onClick={onBack}>Change something</button>
+          <button type="button" className="ln-print-word" onClick={onDone}>Done</button>
         </div>
       </div>,
       document.body,
     );
   }
-  const current = grounds.find(g => g.key === ground);
+  if (final) {
+    return createPortal(
+      <div className="ln-print-pop" role="dialog" aria-modal="true" aria-label="Your print" onClick={onBack}>
+        <div className="ln-print-pop-sheet" onClick={event => event.stopPropagation()}>
+          {clip
+            ? <video className="ln-print-pop-print" src={clip} autoPlay loop muted playsInline />
+            : <img className="ln-print-pop-print" src={picture} alt="Your print" />}
+          <div className="ln-print-said" aria-live="polite">{status}</div>
+          <div className="ln-print-doors">
+            {canDeliver && (
+              <button type="button" className="ln-print-door" onClick={onDeliver}>
+                <DownloadSimple size={20} aria-hidden="true" />
+                <span>{canSend ? 'Save or share' : 'Save'}</span>
+              </button>
+            )}
+            <button type="button" className="ln-print-door" onClick={onBack}>
+              <X size={20} aria-hidden="true" />
+              <span>Close</span>
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
+  if (away) return null;
+  const section = sections.find(s => s.key === tab) || sections[0];
   return createPortal(
+    <>
+    <button type="button" className="ln-print-shut" onClick={onDone} aria-label="Back">
+      <X size={22} aria-hidden="true" />
+    </button>
     <div className="ln-print-bar" role="toolbar" aria-label="Printing">
-      <div className="ln-print-said" aria-live="polite">{status}</div>
-      <div className="ln-print-look">{current?.label}</div>
-      <div className="ln-print-grounds" role="tablist" aria-label="Ground">
-        {grounds.map(g => (
-          <button
-            key={g.key}
-            type="button"
-            role="tab"
-            aria-selected={g.key === ground}
-            aria-label={g.label}
-            title={g.label}
-            className={'ln-print-dot' + (g.key === ground ? ' ln-print-dot--on' : '')}
-            onClick={() => onGround(g.key)}
-          />
-        ))}
-      </div>
-
-      <div className="ln-print-row ln-print-sizes" role="tablist" aria-label="Size">
-        {FRAME_ORDER.map(key => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={key === size}
-            className={'ln-print-size' + (key === size ? ' ln-print-size--on' : '')}
-            onClick={() => onSize(key)}
-            title={FRAMES[key].note}
-          >
-            {FRAMES[key].label}
-          </button>
-        ))}
-      </div>
-
-      <div className="ln-print-row">
-        <button type="button" className="ln-pin ln-pin--on" onClick={onSave}>
-          <DownloadSimple size={13} weight="bold" aria-hidden="true" />
-          <span>Save</span>
-        </button>
-        <button type="button" className="ln-pin" onClick={onDone}>
-          <X size={13} weight="bold" aria-hidden="true" />
-          <span>Done</span>
-        </button>
-      </div>
-    </div>,
+      {section && (
+        <>
+          {sections.length > 1 && (
+            <div className="ln-print-tabs" role="group" aria-label="What to change">
+              {sections.map(t => (
+                <button key={t.key} type="button" aria-pressed={t.key === section.key} className={'ln-print-word' + (t.key === section.key ? ' ln-print-word--on' : '')} onClick={() => onTab(t.key)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className={'ln-print-choices' + (section.stacked ? ' ln-print-choices--stacked' : '')}>
+            {section.groups.map((group, g) => (
+              <div className="ln-print-group" key={g}>
+                {group.map(c => (
+                  <button key={c.key} type="button" aria-pressed={c.on} className={'ln-print-choice' + (c.on ? ' ln-print-choice--on' : '') + (c.icon ? '' : ' ln-print-choice--word')} onClick={c.press}>
+                    {c.icon}
+                    <span>{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {!saving && <div className="ln-print-said" aria-live="polite">{status}</div>}
+      <button type="button" className="ln-print-save" onClick={onSave} disabled={saving}>
+        <DownloadSimple size={19} aria-hidden="true" />
+        <span>{saving ? 'Making your flyer…' : 'Save'}</span>
+      </button>
+    </div>
+    </>,
     document.body,
   );
 }

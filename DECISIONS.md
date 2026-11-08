@@ -733,6 +733,27 @@ pressing. `?entry=slug` travels from an entry; the card sends nobody,
 meaning the profile. The press landed for the record on 2026-09-12; the
 card's door still says so until its plate is reworked.
 
+**What the printer is, 2026-11-03 (Miyel, trying it on her phone).** Save shows
+the print in a pop-up, because no web page can write to a camera roll. An album
+that turns sweeps, never a full turn (half of one shows a backwards cover). The
+journal's print opens from the wall's line and is what the wall shows. Original
+games only.
+
+**A record's looks are separate exports, not filters, 2026-11-04 (Miyel).** Until
+then every look kept one layout and changed only the wash and ink: right while a
+print had to read as the journal's own card, wrong once a look is a costume somebody
+chose ("they should genuinely be their own export"). Now the information is fixed and
+the layout is not: every look draws the cover, stars, marks, title with artist and
+year, horizon and the mark, no more and no fewer, in `looks/`, on one canvas scene.
+A print is always the album's real cover: looks differ by layout, never by a version
+of the art (2026-11-05). The card is the reading card exported, grey bars and red
+hearts; Poster is the other layout, words and bars in one colour from the album (black or white on a colourless cover), the real cover gliding in; dots, colour layers,
+sheets and a puzzle of colour shapes were tried and let go (2026-11-06). Each is Day
+or Night (2026-11-06) and Animated or Still. Orbs, Levels, Reflect, Drift and TV
+were added the same day to be judged; the names are placeholders. No gold for a Masterpiece:
+a gold edge on every look and a gold trading card were tried and taken off (2026-11-06). Game, Mosaic, CRT, Paper,
+Riso, dotted Halftone, Record, Solitaire, Sideways, Headline, Trading, CRT, Snake, Tiles and Flood were built and cut, and nothing moves to a beat (git has them, 2026-11-04).
+
 **The printer is a mode of the entry page, 2026-09-13.** Press the glyph and
 the first screen becomes the flyer, the way correcting is a mode: the card
 you already know, full size, in the real type. A sheet of its own — a
@@ -2609,10 +2630,6 @@ no file".
 
 - Spotify Connect transport control (fragile: two API tightenings in eighteen
   months; needs per-copy client ID and Premium). After the deploy button.
-- Video exports. The ffmpeg-and-timeouts reason is gone, 2026-09-12: a
-  browser records its own canvas into an H.264 MP4 with no server, in
-  about a second for four seconds of 1080×1920 (proved in Chromium). Still parked until a phone has posted one and a moving card
-  earns it — motion that means something, not a screensaver.
 - Manual now-playing override — say what is on without opening a listen. It
   covered vinyl and iOS Apple Music while Last.fm was the other beacon; with
   Last.fm gone it is the only way the beacon could ever mean *playing* rather

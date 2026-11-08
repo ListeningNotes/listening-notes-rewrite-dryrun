@@ -281,6 +281,24 @@
   background: var(--ink-faint);
   opacity: 0.5;
 }
+/* ── The sheet carries the wash, 2026-11-02 ────────────────────────────────
+   While the record is live, home's wash goes on down the sheet (HomeNav, And
+   the listen's sheet): the tab and the top of the listen in the colour of
+   the wash just above the sheet's edge, reaching the page's colour where the
+   wash does, so the row over the sheet, the strip of home and the sheet are
+   one colour. The tab wears the head of the same fade, so at rest it is the
+   listen under it to the pixel — a solid band stood out from the fade below
+   it — and keeps it however far the listen is scrolled, as the top row keeps
+   its slice of the wash. A phone's only, as the wash is. */
+@media (max-width: 768px) {
+  html[data-washed='sheet'] .lay--sheet .lay-grip,
+  html[data-washed='sheet'] .lay--sheet .ses {
+    background-color: var(--bg);
+    background-image: linear-gradient(180deg, var(--wash-sheet-top, var(--bg)) 0, var(--bg) var(--wash-sheet-h, 0px));
+    background-size: 100% var(--wash-sheet-h, 0px);
+    background-repeat: no-repeat;
+  }
+}
 /* The status bar is outside the sheet now, so the page inside it starts
    under the tab rather than under the clock. */
 .lay--sheet .ses-body--page { padding-top: 34px; }
@@ -1236,26 +1254,24 @@ a.ln-sent-who:hover { text-decoration: underline; text-underline-offset: 3px; }
   color: var(--ink-faint);
   white-space: nowrap;
 }
-.ln-snippet-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 18px;
+/* The doors under a record's tracklist and a song's preview — Apple Music,
+   and on a song the keeper's Full album: a glyph in ink over one word in the
+   label face, the way the site's doors are drawn, side by side on the middle
+   of the page (2026-10-29, the doors of Miyel's mock-up; the plain mono link
+   they replace was SnippetLink's). */
+.ln-doors { display: flex; justify-content: center; gap: 0 44px; margin: 18px 0 6px; }
+.ln-door {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 7px;
+  min-width: 44px; padding: 6px 4px; margin: -6px -4px;
+  border: 0; background: none; color: var(--ink-soft); text-decoration: none;
+  font-family: var(--font-label); font-size: 9.5px; line-height: 1;
+  letter-spacing: 0.11em; text-transform: uppercase; white-space: nowrap;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
 }
-.ln-snippet-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 44px;
-  font-family: var(--font-label);
-  font-size: 10.5px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  text-decoration: none;
-}
-.ln-snippet-link:hover { color: var(--ink); }
+.ln-door svg { display: block; color: var(--ink); }
+.ln-door:hover { color: var(--ink); }
+.ln-door:focus-visible { outline: 2px solid var(--ink-faint); outline-offset: -2px; border-radius: 8px; }
 .ln-snippet-caption {
   margin: 0;
   font-family: var(--font-label);
@@ -1265,7 +1281,7 @@ a.ln-sent-who:hover { text-decoration: underline; text-underline-offset: 3px; }
   color: var(--ink-faint);
 }
 /* The track note's: the large button with the meter running the rest of
-   the width beside it, the caption and the link centred under. */
+   the width beside it, the caption and the doors centred under. */
 .tn-snippet { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 28px 0 8px; }
 .tn-snippet-play { display: flex; align-items: center; gap: 14px; width: 100%; }
 .tn-snippet-play .ln-snippet-meter { flex: 1; margin: 0; }
@@ -1965,8 +1981,8 @@ a.ln-sent-who:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ln-printing {
   /* The fixed logo row stands down while printing (below), so only the
      phone's own bar is cleared — the inset rides along on the home screen. */
-  --print-top: calc(22px + env(safe-area-inset-top, 0px));
-  --print-bar: 190px;    /* the bar's three rows */
+  --print-top: calc(44px + env(safe-area-inset-top, 0px));
+  --print-bar: 190px;    /* the bar's rows; 240px when the layouts have a row of their own */
   --print-side: 12px;
   --print-max: 520px;    /* the paper's width on a wide screen */
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2026,6 +2042,10 @@ a.ln-sent-who:hover { text-decoration: underline; text-underline-offset: 3px; }
   transform-origin: center;
 }
 .ln-printing .ln-print-card > * { position: relative; z-index: 1; }
+/* The print is a canvas over all of it (EntryPlate.js); the
+   card stays in the page, unseen, for the faces the canvas reads off it. */
+.ln-print-live { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; display: block; }
+.ln-printing .ln-print-card { visibility: hidden; }
 /* Opened out on the wide paper, the way the plate lays it: the cover to
    the left, as large as the paper allows, and the writing beside it
    (Miyel, 2026-09-13), with the paper's padding pulled in to give it room. */
@@ -2078,21 +2098,7 @@ a.ln-sent-who:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ln-print-line:focus, .ln-print-line:focus-visible { outline: none; }
 .ln-print-mark path, .ln-print-mark circle { fill: var(--ink); transition: fill 0.2s; }
 .ln-print-mark .ln-print-mark-dot--live { fill: var(--live); }
-/* The finished picture over the paper, when a phone has no share sheet to
-   take it: held, iOS offers Add to Photos; tapped, the card returns. */
-.ln-print-out {
-  position: absolute; inset: 0; z-index: 3;
-  width: 100%; height: 100%; object-fit: contain;
-  background: var(--bg);
-  -webkit-touch-callout: default;
-}
-.ln-print-line { cursor: pointer; transition: opacity 0.25s ease; -webkit-tap-highlight-color: transparent; }
-.ln-print-line.ln-off { opacity: 0.18; }
-.ln-print-keeper {
-  font-family: var(--font-label); font-size: 13px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--ink-soft);
-  padding: 4px 12px;
-}
+.ln-print-line.ln-off { display: none; }
 .ln-print-symbol { display: inline-flex; line-height: 1; padding: 0 4px; }
 .ln-print-horizon { width: 100%; max-width: 340px; }
 .ln-print-bar {
@@ -2105,38 +2111,87 @@ a.ln-sent-who:hover { text-decoration: underline; text-underline-offset: 3px; }
   border-top: 1px solid var(--border);
   color: var(--ink);
 }
-.ln-print-look {
-  font-family: var(--font-label); font-size: 9px; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--ink-soft);
-}
 .ln-print-row { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
-.ln-print-grounds { display: flex; align-items: center; gap: 10px; }
-.ln-print-dot {
-  width: 10px; height: 10px; padding: 0; border-radius: 999px;
-  border: 1px solid var(--ink-faint); background: transparent; cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
-}
-.ln-print-dot--on { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
-.ln-print-sizes { gap: 6px; }
-.ln-print-size {
-  font-family: var(--font-label); font-size: 9.5px; letter-spacing: 0.1em;
-  padding: 6px 11px; border-radius: 999px;
-  border: 1px solid var(--border); background: transparent; color: var(--ink-soft);
+/* No pills (2026-11-03): a word with a line under the one that is on, for the
+   sizes and for what the print shows; a glyph over a word for the doors. */
+.ln-print-word {
+  font-family: var(--font-label); font-size: 10px; letter-spacing: 0.1em;
+  padding: 5px 0 3px; border: 0; border-bottom: 1px solid transparent; border-radius: 0;
+  background: transparent; color: var(--ink-soft); text-transform: uppercase;
   cursor: pointer; white-space: nowrap;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.ln-print-size:hover { color: var(--ink); border-color: var(--ink-faint); }
-.ln-print-size--on { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+.ln-print-word:hover { color: var(--ink); }
+.ln-print-word--on { color: var(--ink); border-bottom-color: var(--ink); }
+.ln-print-tabs { display: flex; justify-content: center; gap: 28px; width: 100%; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.ln-print-choices { display: flex; width: 100%; min-height: 50px; overflow-x: auto; scrollbar-width: none; }
+.ln-print-choices::-webkit-scrollbar { display: none; }
+/* Too many layouts to share a row: they get their own, over the rest. */
+.ln-print-choices--stacked { flex-wrap: wrap; }
+.ln-print-choices--stacked .ln-print-group:first-child { flex-basis: 100%; overflow-x: auto; scrollbar-width: none; justify-content: safe center; gap: 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 4px; }
+.ln-print-choices--stacked .ln-print-group:nth-child(2) { border-left: 0; }
+.ln-print-group { display: flex; flex: 1 0 auto; justify-content: center; align-items: center; }
+.ln-print-group + .ln-print-group { border-left: 1px solid var(--border); }
+.ln-print-choice {
+  flex: 0 0 auto; min-width: 42px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 4px 2px; border: 0; background: transparent; color: var(--ink-faint);
+  font-family: var(--font-label); font-size: 8px; letter-spacing: 0.05em; text-transform: uppercase;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ln-print-choice--on { color: var(--ink); }
+/* A choice with no glyph is a word: the ID row. */
+.ln-print-choice--word { font-size: 10px; letter-spacing: 0.1em; color: var(--ink-soft); padding: 6px 10px; border-bottom: 1px solid transparent; }
+.ln-print-choice--word.ln-print-choice--on { color: var(--ink); border-bottom-color: var(--ink); }
+.ln-print-save {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; max-width: 420px; margin-top: 2px; padding: 13px 0; border: 0; border-radius: 12px;
+  background: #111; color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 15px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ln-print-save:disabled { opacity: 1; background: var(--ink-faint); cursor: default; }
+.ln-print-told { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 4px 0 6px; }
+.ln-print-told strong { font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--ink); }
+.ln-print-told span { font-size: 13px; line-height: 1.35; color: var(--ink-soft); }
+.ln-print-after { display: flex; justify-content: center; gap: 28px; }
+.ln-print-shut {
+  position: fixed; left: 8px; top: calc(6px + env(safe-area-inset-top, 0px)); z-index: 401;
+  padding: 8px; line-height: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer;
+}
+@media (min-width: 769px) { .ln-print-shut { left: calc(var(--spine-w, 0px) + 8px); } }
+.ln-print-doors { display: flex; justify-content: center; gap: 32px; }
+.ln-print-door {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 56px; padding: 4px; border: 0; background: transparent; color: var(--ink);
+  font-family: var(--font-label); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+/* The pop-up: the finished print over the page. */
+.ln-print-pop {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.5);
+}
+.ln-print-pop-sheet {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  max-width: 100%; max-height: 100%; padding: 14px; box-sizing: border-box;
+  border-radius: 16px; background: var(--bg); color: var(--ink);
+}
+.ln-print-pop-print {
+  display: block; width: auto; height: auto; min-height: 0;
+  max-width: 100%; max-height: calc(100dvh - 170px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  border-radius: 8px; -webkit-touch-callout: default;
+}
 .ln-print-said {
   font-family: var(--font-label); font-size: 10px; letter-spacing: 0.08em;
-  color: var(--ink-soft); min-height: 12px; text-align: center; overflow-wrap: anywhere;
-  margin-bottom: 2px;
+  color: var(--ink-soft); text-align: center; overflow-wrap: anywhere;
 }
+.ln-print-said:empty { display: none; }
 /* The sheet's own furniture stands down while printing: the carets to the
    neighbours (a pointer's version of the sideways swipe, which now turns
    the ground). Reached from the root — the carets are the sheet's, not the
    page's, and :has() does not survive the build. */
-html[data-printing] .lay-step { display: none; }
+html[data-printing] .lay-step,
+html[data-printing] .lay-back-slot { display: none; }
 /* And the header: the card carries its own mark, and the light switch has
    nothing to switch while the paper sets its own colours (Miyel,
    2026-09-13). */
@@ -2148,7 +2203,6 @@ html[data-printing] .sitenav-row { display: none; }
    foot (tried, 2026-09-13). So the bar stays inside the viewport and the
    band, which shows the page's background, wears the bar's colour — the
    same --bg — and reads as the bar's foot rather than as a gap. */
-@media (prefers-reduced-motion: reduce) { .ln-print-line { transition: none; } }
 
 /* ── The bars an entry pins to the window, on a desk ───────────────────────
    The correction bar, its trouble line and the print bar (which is portalled
@@ -2349,24 +2403,6 @@ html[data-printing] .sitenav-row { display: none; }
   .tn--composing:focus-within .tn-card { padding-bottom: 50vh; }
   .tn--composing .tn-screens { scroll-padding-bottom: 160px; }
 }
-/* Plain words and a play mark, in ink, underlined so it reads as the link it
-   is: the one thing on the card that goes somewhere. Under the head, so a
-   long note cannot bury it (2026-09-25) — and not a pill, which Miyel does
-   not like. */
-.tn-whole {
-  display: flex; align-items: center; gap: 9px;
-  width: fit-content; min-height: 44px; margin: 10px auto 0; padding: 0; border: 0; background: none;
-  font-family: var(--font-label); font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 5px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.tn-whole + .tn-body { margin-top: 12px; }
-.tn-whole svg { display: block; flex-shrink: 0; }
-.tn-whole:focus-visible { outline: 2px solid var(--ink-faint); outline-offset: 3px; }
 /* The date, last in the head, once — as an album entry says its own. */
 .tn-posted {
   margin: 10px 0 0;

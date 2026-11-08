@@ -28,12 +28,14 @@
 'use client';
 
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowsDownUp, CaretDown, Moon, MoonStars, Sun, SunHorizon } from '@phosphor-icons/react';
+import { sheetReopened, sheetToReopen } from './LayerEntry';
+import { ArrowsDownUp, CaretDown, Export, Moon, MoonStars, Sun, SunHorizon } from '@phosphor-icons/react';
 import { parseHorizon, parseRating } from '../../library/entry_formatter';
 import { readArtColor } from '../../library/music_data_api';
 import AlbumTile from './AlbumTile';
 import StarRating from './StarRating';
-import { handOffOrder } from '../../library/handoff';
+import Link from 'next/link';
+import { handOffOrder, handOffWall } from '../../library/handoff';
 import GridDensity, { DENSITIES, HOME_DENSITIES, DEFAULT_DENSITY, readStoredDensity, storeDensity } from './GridDensity';
 import JournalFilters, { roomFloor } from './JournalFilters';
 import { DELETE_ENTRY } from '../../hooks/useEntryEditor';
@@ -483,11 +485,15 @@ const COVERS_AT_A_TIME = 50;
 //             remembered — Friends adds Feed and List (GridDensity.js); the
 //             size is handed to `tile` beside the record. Unsaid, the
 //             journal's own wall has List and somebody else's the grid alone
+// The wall's print stands down while the record's is tried through the whole process
+// (Miyel, 2026-11-07). Built and whole; this brings its door back.
+const WALL_PRINT_OFFERED = false;
+
 function Journal({
   entries: given, loading: givenLoading, scroller, foot = null,
   records = null, tile = null, tail = null, filters = true, viewKey = VIEW_KEY,
   empty = null, seek = null, before = null, onOrder = null, shared = null,
-  densities: offered = null, densityKey = undefined,
+  densities: offered = null, densityKey = undefined, printable = false,
 }) {
   const [ownEntries, setOwnEntries] = useState([]);
   const [ownLoading, setOwnLoading] = useState(true);
@@ -628,6 +634,26 @@ function Journal({
     () => window.matchMedia(`(max-width: ${FLIP_BELOW}px)`).matches,
     () => false,
   );
+
+  // A record that was open as a sheet when the page reloaded comes back, opened from its
+  // tile as if just tapped, so its neighbours and its pull to close are all there. Not on
+  // a frame: a phone coming back from another app may not be drawing yet.
+  useEffect(() => {
+    if (loading) return undefined;
+    let tries = 0;
+    const timer = setInterval(() => {
+      const path = sheetToReopen();
+      tries += 1;
+      if (!path) { clearInterval(timer); return; }
+      const tile = document.querySelector(`a[href="${path}"]`);
+      if (!tile && tries < 30) return;
+      clearInterval(timer);
+      sheetReopened();
+      if (tile) tile.click();
+      else window.location.assign(path);
+    }, 50);
+    return () => clearInterval(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (supplied) return;
@@ -964,6 +990,18 @@ function Journal({
   }, [view, filtered, foreign]);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- colorsRead says the covers' colors (a module map) have changed
   const arranged = useMemo(() => arrange(filtered, view, seed), [filtered, view, seed, colorsRead]);
+  // What the filters have left, in a word or two, for the print's caption.
+  const wallCaption = [
+    search.trim(),
+    genre,
+    favoritesOnly && 'Favorites',
+    masterpiecesOnly && 'Masterpieces',
+    formativeOnly && 'Formative',
+    sentOnly && 'Sent to me',
+    kind === 'albums' && 'Albums',
+    kind === 'tracks' && 'Songs',
+    yearActive && (yearRange[0] === yearRange[1] ? String(yearRange[0]) : `${yearRange[0]}–${yearRange[1]}`),
+  ].filter(Boolean).join(' · ');
   // How many records each band holds, all of it and not just what is drawn
   // so far, for the number at the end of its heading (Miyel, 2026-10-22: "I
   // want to know how many late night"). A count on a group of records, the
@@ -1472,6 +1510,23 @@ function Journal({
             </svg>
             <span className="arc-ctl-text">Filters</span>
           </button>
+          )}
+          {/* The keeper's way to the printer, 2026-11-03: it prints what the
+              wall is showing, so there is nothing to choose there
+              (JournalPlate.js). */}
+          {printable && WALL_PRINT_OFFERED && (
+            <Link
+              href="/printer"
+              className="arc-ctl"
+              aria-label="Share what the wall is showing"
+              onClick={() => {
+                const seen = new Set();
+                const covers = arranged.map(({ album }) => album.face.album_art).filter(src => src && !seen.has(src) && seen.add(src));
+                handOffWall(covers, wallCaption);
+              }}
+            >
+              <Export size={16} weight="regular" aria-hidden="true" />
+            </Link>
           )}
 
 

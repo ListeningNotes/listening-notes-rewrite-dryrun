@@ -182,3 +182,81 @@ export function loadPicture(src) {
   });
   return attempt(true).catch(() => attempt(false)).catch(() => null);
 }
+
+// ── A record's print ───────────────────────────────────────────────────────
+// What every look (looks/) draws a record with.
+
+// The papers, for a record's print and the journal's (JournalPlate.js).
+export const INKS = {
+  day: {
+    ink: '#1a1a1a', soft: '#6b6b6b', faint: '#a8a8a8', warm: '#efebe2',
+    rule: 'rgba(26,26,26,0.15)', unlit: 'rgba(232,184,75,0.18)',
+    bar: 'rgba(26,26,26,0.5)',
+    edge: 'rgba(255,255,255,0.6)',                                  // --panel-border
+    lift: ['rgba(0,0,0,0.06)', 'rgba(0,0,0,0.06)'],                 // --shadow-lift
+    wash: 'rgba(238,240,236,0.46)', paper: '#eef0ec',
+  },
+  night: {
+    ink: '#e8e4dc', soft: '#888888', faint: '#666666', warm: '#161616',
+    rule: 'rgba(232,228,220,0.16)', unlit: 'rgba(232,184,75,0.18)',
+    bar: 'rgba(232,228,220,0.5)',
+    edge: 'rgba(255,255,255,0.08)',
+    lift: ['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.3)'],
+    wash: 'rgba(14,14,14,0.5)', paper: '#0e0e0e',
+  },
+};
+export const STAR_PATH = 'M9 1.5l2.163 4.38 4.837.703-3.5 3.412.826 4.818L9 12.39l-4.326 2.273.826-4.818L2 6.583l4.837-.703z';
+export const HEART_PATH = 'M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.7-8 11-8 11z';
+// The tags, as the feed draws them: Phosphor's Heart (fill), SketchLogo (fill)
+// and Fingerprint (bold), each a single path in a 256-box.
+export const SYMBOLS = {
+  fav: 'M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z',
+  mp: 'M246,98.73l-56-64A8,8,0,0,0,184,32H72a8,8,0,0,0-6,2.73l-56,64a8,8,0,0,0,.17,10.73l112,120a8,8,0,0,0,11.7,0l112-120A8,8,0,0,0,246,98.73ZM222.37,96H180L144,48h36.37ZM74.58,112l30.13,75.33L34.41,112Zm106.84,0h40.17l-70.3,75.33ZM75.63,48H112L76,96H33.63Z',
+  formative: 'M160,128a224.48,224.48,0,0,1-26.37,105.54,12,12,0,1,1-21.16-11.32A200.33,200.33,0,0,0,136,128a8,8,0,0,0-16,0,12,12,0,0,1-24,0,32,32,0,0,1,64,0ZM128,56a12,12,0,1,0,0,24,48.05,48.05,0,0,1,48,48c0,7.62-.36,15.32-1.07,22.87A12,12,0,0,0,185.74,164c.38,0,.76,0,1.14,0a12,12,0,0,0,11.93-10.87c.79-8.3,1.18-16.76,1.18-25.13A72.08,72.08,0,0,0,128,56ZM96,92.23A12,12,0,0,0,80,74.35,72.1,72.1,0,0,0,56,128a120.11,120.11,0,0,1-15.12,58.37,12,12,0,0,0,21,11.69A144.14,144.14,0,0,0,80,128,48.08,48.08,0,0,1,96,92.23Zm10.1,64.1a12,12,0,0,0-14.46,8.9,158.61,158.61,0,0,1-18.88,45.86,12,12,0,0,0,20.5,12.48A182.86,182.86,0,0,0,115,170.79,12,12,0,0,0,106.1,156.33Zm76.73,24.07A12,12,0,0,0,168.19,189a241.5,241.5,0,0,1-8,24.87,12,12,0,0,0,6.91,15.49,11.76,11.76,0,0,0,4.29.8,12,12,0,0,0,11.21-7.71,260.2,260.2,0,0,0,8.79-27.37A12,12,0,0,0,182.83,180.4ZM128,16A112.12,112.12,0,0,0,16,127.44c0,.19,0,.38,0,.57a79.81,79.81,0,0,1-5,27.82,12,12,0,1,0,22.5,8.35A103.59,103.59,0,0,0,40,128.58c0-.19,0-.38,0-.57a88,88,0,0,1,176-.5c0,.16,0,.33,0,.5a282.12,282.12,0,0,1-6.74,61.38,12,12,0,0,0,9.09,14.33A11.84,11.84,0,0,0,221,204a12,12,0,0,0,11.7-9.38A305.87,305.87,0,0,0,240,128.55c0-.18,0-.36,0-.54A112.13,112.13,0,0,0,128,16Z',
+};
+
+export const clamp01 = v => Math.min(1, Math.max(0, v));
+// Whatever costs to draw (a shadow, a glow) is paid once on a picture like this,
+// not on every frame of a video.
+export function sheet(w, h, paint) {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(w));
+  canvas.height = Math.max(1, Math.ceil(h));
+  paint(canvas.getContext('2d'));
+  return canvas;
+}
+
+// The title wrapped to fit `wide`. A word wider than the paper, or more lines
+// than there is `room` for, and the whole block comes down together: `heightAt`
+// is the block's height at that size with that many lines.
+export function fitTitle({ album, fontAt, wide, room, heightAt }) {
+  const measure = document.createElement('canvas').getContext('2d');
+  let k = 1, lines = [];
+  const lay = () => {
+    measure.font = fontAt(k);
+    lines = wrapLines(measure, album || '', wide, 0);
+  };
+  lay();
+  k = Math.min(1, wide / Math.max(1, ...lines.map(line => measure.measureText(line).width)));
+  lay();
+  if (heightAt(k, lines.length) > room) {
+    k *= room / heightAt(k, lines.length);
+    lay();
+  }
+  return { k, lines };
+}
+
+// The artist line, in the label face and tracked, large enough to read on a
+// smaller paper and never wider than `wide`.
+export function drawArtist(c, line, x, y, { size, tracking, wide, least, colour, mono, align = 'center' }) {
+  let px = Math.max(size, least);
+  c.font = `400 ${px}px ${mono}`;
+  const across = [...line].reduce((n, ch) => n + c.measureText(ch).width + px * tracking, 0);
+  if (across > wide) {
+    px *= wide / across;
+    c.font = `400 ${px}px ${mono}`;
+  }
+  c.textBaseline = 'top';
+  c.fillStyle = colour;
+  drawTracked(c, line, x, y, px * tracking, align);
+}

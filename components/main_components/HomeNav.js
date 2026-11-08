@@ -71,7 +71,8 @@ import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useR
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowsLeftRight, CaretDown, Globe } from '@phosphor-icons/react';
-import { announce, useListeningBeacon } from '../../hooks/useListeningBeacon';
+import { announce, refreshBeacon, useListeningBeacon } from '../../hooks/useListeningBeacon';
+import PullDown from './PullDown';
 import { useSpineWidth } from '../../hooks/useSpineWidth';
 import { useTheme } from './Lightswitch';
 import { useBookplate } from './Bookplate';
@@ -404,6 +405,12 @@ export default function HomeNav() {
       .catch(() => setLoading(false));
   }, [fetchEntries]);
   useEffect(() => { askEntries(); }, [askEntries]);
+  // A pull down at the top of home asks for both halves of it now: the
+  // beacon and the wall (Miyel, 2026-11-07: the logo's spin "on the wall too").
+  const pullHome = useCallback(() => Promise.all([
+    fetchEntries().then(setEntries).catch(() => {}),
+    refreshBeacon(),
+  ]), [fetchEntries]);
 
   // Fetched on mount rather than on first swipe: it is a few hundred bytes,
   // and a card that assembles itself while you are looking at it is a worse
@@ -1434,18 +1441,32 @@ export default function HomeNav() {
   // of the screen, even behind the time"). The brow stands over everything,
   // so this is home's address only: an entry laid over home has the brow of
   // the page's colour it always had.
+  //
+  // ── And the listen's sheet, 2026-11-02 ──────────────────────────────────
+  // The listen is a sheet that stops short of the top, so home shows over it
+  // (entry.css, .lay--sheet) — but it has an address of its own, and the
+  // rule above put the top row back on page colour the moment it rose: a
+  // white row over a sliver of the wash, over the sheet. Miyel: "can we make
+  // that stay the color of the album and have it continue color into session
+  // page as well?" So /session keeps the row on the wash, and while the
+  // record is live the sheet carries the wash on down: its top edge the
+  // colour of the wash just above it, reaching the page's colour where the
+  // wash does (entry.css, the sheet carries the wash). Not while the picker
+  // is up and nothing is live: the wash is then the last record, which is
+  // home's, not the listen's.
   useEffect(() => {
     const home = paneRefs[HOME]?.current;
     const root = document.documentElement;
     if (!home || !root) return undefined;
     const clear = () => {
       root.removeAttribute('data-washed');
-      for (const name of ['--wash-image', '--wash-h', '--wash-y', '--wash-top', '--wash-fill-h']) root.style.removeProperty(name);
+      for (const name of ['--wash-image', '--wash-h', '--wash-y', '--wash-top', '--wash-fill-h', '--wash-sheet-top', '--wash-sheet-h']) root.style.removeProperty(name);
     };
     const place = () => {
       const washEl = home.querySelector('.beacon-wash');
       const ground = root.querySelector('.hn-bar-ground');
-      if (!washEl || !ground || pane !== HOME || cardOpen || path !== '/' || !washEl.offsetHeight) { clear(); return; }
+      const listening = path === '/session';
+      if (!washEl || !ground || pane !== HOME || cardOpen || (path !== '/' && !listening) || !washEl.offsetHeight) { clear(); return; }
       const w = washEl.getBoundingClientRect();
       const g = ground.getBoundingClientRect();
       const y = Math.round(w.top - g.top);
@@ -1456,21 +1477,41 @@ export default function HomeNav() {
       // its top colour rather than the page's.
       root.style.setProperty('--wash-top', `color-mix(in srgb, ${wash} ${isLive ? 52 : 30}%, var(--bg))`);
       root.style.setProperty('--wash-fill-h', `${Math.max(0, y)}px`);
-      root.setAttribute('data-washed', '');
+      // The sheet's top edge, as far down the wash as it stands — offsetTop,
+      // so the rise's transform does not move it — and how far below that
+      // the wash reaches the page. The live wash runs straight from 52% to
+      // nothing (nav.css, .beacon-wash).
+      const sheet = listening && isLive ? root.querySelector('.lay--sheet') : null;
+      if (sheet) {
+        const down = Math.min(1, Math.max(0, (sheet.offsetTop - w.top) / w.height));
+        root.style.setProperty('--wash-sheet-top', `color-mix(in srgb, ${wash} ${Math.round(52 * (1 - down))}%, var(--bg))`);
+        root.style.setProperty('--wash-sheet-h', `${Math.max(0, Math.round(w.bottom - sheet.offsetTop))}px`);
+      } else {
+        root.style.removeProperty('--wash-sheet-top');
+        root.style.removeProperty('--wash-sheet-h');
+      }
+      root.setAttribute('data-washed', sheet ? 'sheet' : '');
     };
     place();
+    // The sheet comes in with the address; if it is not drawn yet, a frame on.
+    // And Day or Night: the wash is copied with the page's colour already in
+    // it, so the switch copies it again, a frame on, once the page has turned
+    // (Lightswitch sets it after this runs). Before, the top row kept the old
+    // colour until the page was scrolled (Miyel, 2026-11-07).
+    const late = requestAnimationFrame(place);
     home.addEventListener('scroll', place, { passive: true });
     window.addEventListener('resize', place);
     const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     const floor = home.querySelector('.hn-floor--beacon');
     if (watch && floor) watch.observe(floor);
     return () => {
+      cancelAnimationFrame(late);
       home.removeEventListener('scroll', place);
       window.removeEventListener('resize', place);
       watch?.disconnect();
       clear();
     };
-  }, [paneRefs, pane, cardOpen, wash, isLive, path]);
+  }, [paneRefs, pane, cardOpen, wash, isLive, path, theme]);
 
   function goTo(index) {
     const el = railRef.current;
@@ -1964,6 +2005,7 @@ export default function HomeNav() {
               the journal, which is the thing a fixed band at the foot cannot
               afford — and it cost two EXISTS subqueries on every page render
               to ask. Both went. */}
+          <PullDown scroller={homeRef} onPull={pullHome} mark={mark('ln-pull-svg')} />
           {/* Floor one — the crown, the record with its caption, and what
               came before. On a phone it is exactly one screen tall, so the
               snap has one place to land; on a desk it is a wrapper. */}
@@ -2043,6 +2085,7 @@ export default function HomeNav() {
                   entries={entries}
                   loading={loading}
                   scroller={wallScroller}
+                  printable={authed}
                 />
               </div>
             </div>

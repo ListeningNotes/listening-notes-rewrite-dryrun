@@ -109,14 +109,14 @@ export function readArtColor(address) {
 // So a given id is tried first, and when it answers nothing the name search
 // runs as though no id had been given. What comes back names the id that
 // actually worked, so the caller can keep that one instead.
-export async function fetchTracklist(albumName, artistName, collectionId = null) {
+export async function fetchTracklist(albumName, artistName, collectionId = null, year = null, songs = 0) {
   try {
     const given = collectionId ? String(collectionId) : '';
     if (given) {
       const found = await songsOf(given);
       if (found) return found;
     }
-    const id = await findCollectionId(albumName, artistName);
+    const id = await findCollectionId(albumName, artistName, year, songs);
     if (!id || String(id) === given) return null;
     return await songsOf(id);
   } catch { return null; }
@@ -124,17 +124,36 @@ export async function fetchTracklist(albumName, artistName, collectionId = null)
 
 // Step 1: the record's id, from a search on the name, scored so the plain
 // edition wins over the deluxe when both match. `norm` is the module's, below.
-async function findCollectionId(albumName, artistName) {
+//
+// ── The right one of several, 2026-11-07 ────────────────────────────────
+// Two ways the search used to land on the wrong record, both of them Miyel's (her "one of my
+// favorite parts of the site"): Skinty Fia, where Apple's search holds only the one-song
+// "Skinty Fia (Edit) - Single" and the album is on the artist's list alone; and Your Day
+// Will Come, two records of one name by one artist, 2024 and 2026. So a near title is no
+// longer taken while the artist's list may hold the exact one, a single or an EP loses to a
+// record unless that is what was asked for, and the year, where it is known, decides
+// between records of the same name.
+//
+// And Come to Daddy (2026-11-07): logged as "Come to Daddy (EP)", which Apple calls "Come to
+// Daddy", so no title agreed and the search's best guess was another of the artist's records
+// altogether. So a title is compared without the "EP" or "Single" either side may wear, and a
+// guess whose title shares nothing with the album's is no guess: nothing plays rather than
+// another record's songs.
+const SHORT_RELEASE = /\b(single|ep)\b|\(edit\)/;
+const yearOf = r => String(r.releaseDate || '').slice(0, 4);
+const titled = s => norm(s).replace(/\s+(ep|single)$/, '');
+async function findCollectionId(albumName, artistName, year = null, songs = 0) {
   const query = encodeURIComponent(`${artistName} ${albumName}`);
   const searchRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=25`);
   const searchData = await searchRes.json();
   const results = (searchData.results || []).filter(r => r.wrapperType === 'collection' && r.collectionId);
-  if (!results.length) return fromTheArtist(albumName, artistName);
+  if (!results.length) return fromTheArtist(albumName, artistName, null, false, songs);
 
-  const nAlbum = norm(albumName), nArtist = norm(artistName);
+  const nAlbum = titled(albumName), nArtist = norm(artistName);
+  const named = r => { const ra = titled(r.collectionName || ''); return ra.includes(nAlbum) || nAlbum.includes(ra); };
   let best = null, bestScore = -Infinity;
   for (const r of results) {
-    const ra = norm(r.collectionName || ''), rar = norm(r.artistName || '');
+    const ra = titled(r.collectionName || ''), rar = norm(r.artistName || '');
     let score = 0;
     if (ra === nAlbum) score += 40;
     else if (ra.includes(nAlbum) || nAlbum.includes(ra)) score += 20;
@@ -142,11 +161,21 @@ async function findCollectionId(albumName, artistName) {
     else if (rar.includes(nArtist) || nArtist.includes(rar)) score += 15;
     // Prefer a plain edition over deluxe/expanded when scores otherwise tie.
     if (/\b(deluxe|expanded|special|anniversary)\b/.test(ra)) score -= 3;
+    if (SHORT_RELEASE.test(norm(r.collectionName || '')) && !SHORT_RELEASE.test(norm(albumName))) score -= 25;
+    if (year && yearOf(r) === String(year)) score += 25;
     if (score > bestScore) { bestScore = score; best = r; }
   }
-  // The album's name has to be in the answer for it to be this record.
-  if (best && bestScore >= 20 + 15) return best.collectionId;
-  return (await fromTheArtist(albumName, artistName)) || (best ? best.collectionId : null);
+  // The album's name has to be in the answer for it to be this record, and a near name
+  // only stands once the artist's own list has been asked for the exact one.
+  const exact = best && bestScore >= 20 + 15 && titled(best.collectionName || '') === nAlbum;
+  if (exact) {
+    // A record of this very name, but another year's: the artist's list is asked for this
+    // year's, and only one of this year's will do. A year saved for the first pressing,
+    // where Apple has only a later one, keeps the record the search found.
+    if (!year || yearOf(best) === String(year)) return best.collectionId;
+    return (await fromTheArtist(albumName, artistName, year, true, songs)) || best.collectionId;
+  }
+  return (await fromTheArtist(albumName, artistName, year, false, songs)) || (best && named(best) ? best.collectionId : null);
 }
 
 // ── When the search does not know the record, 2026-10-13 ──────────────────
@@ -155,7 +184,7 @@ async function findCollectionId(albumName, artistName) {
 // Krule's albums include The OOZ. So the artist is found by name, their
 // albums are read, and the one whose title is the album's is taken — only an
 // exact title, since there is no search score here to weigh a near one.
-async function fromTheArtist(albumName, artistName) {
+async function fromTheArtist(albumName, artistName, year = null, thisYearOnly = false, songs = 0) {
   if (!artistName) return null;
   const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&entity=musicArtist&limit=5`);
   const data = await res.json();
@@ -163,26 +192,89 @@ async function fromTheArtist(albumName, artistName) {
   if (!artist) return null;
   const look = await fetch(`https://itunes.apple.com/lookup?id=${artist.artistId}&entity=album&limit=200`);
   const lookData = await look.json();
-  const albums = (lookData.results || []).filter(r => r.wrapperType === 'collection' && norm(r.collectionName) === norm(albumName));
-  return albums[0]?.collectionId || null;
+  const albums = (lookData.results || []).filter(r => r.wrapperType === 'collection' && titled(r.collectionName) === titled(albumName));
+  // The year's record where there are several of the name, then the record as it was made
+  // before its clean edit (songsOf, below).
+  const ofYear = year ? albums.filter(r => yearOf(r) === String(year)) : [];
+  if (thisYearOnly && !ofYear.length) return null;
+  const pool = ofYear.length ? ofYear : albums;
+  const uncut = pool.filter(r => r.collectionExplicitness === 'explicit');
+  const choices = uncut.length ? uncut : pool;
+  if (songs && choices.length > 1) {
+    const held = await editionHolding(choices, songs);
+    if (held) return held;
+  }
+  return choices[0]?.collectionId || null;
 }
 
-// Step 2: every song under one id, in order, with the record's facts off the
-// same answer. Null when Apple has no songs under it — a retired id, or one
-// that was never a record's.
-async function songsOf(id) {
+// ── Editions of one name, 2026-11-07 ──────────────────────────────────────
+// MAYHEM is two records on Apple, both 2025 and both named MAYHEM: fourteen
+// songs, and the seventeen the later edition added to. Logged with seventeen,
+// the first one found had three songs short. So where the entry says how many
+// songs it logged, each edition's songs are counted (Apple's own count takes in
+// its music videos, so it cannot say) and the smallest that holds them all is
+// taken, or else the one with most. A few lookups, and only here.
+async function editionHolding(choices, songs) {
+  const counted = [];
+  for (const r of choices.slice(0, 4)) {
+    const found = await editionOf(r.collectionId).catch(() => null);
+    if (found) counted.push({ id: r.collectionId, n: found.songs.length });
+  }
+  const holding = counted.filter(c => c.n >= songs).sort((a, b) => a.n - b.n)[0];
+  return (holding || counted.sort((a, b) => b.n - a.n)[0])?.id || null;
+}
+
+// One lookup: the record's row and its songs in disc and track order. Null
+// when Apple has no songs under the id — a retired id, or one that was never
+// a record's.
+async function editionOf(id) {
   const lookupRes = await fetch(`https://itunes.apple.com/lookup?id=${id}&entity=song&limit=300`);
   const lookupData = await lookupRes.json();
   const rows = lookupData.results || [];
   const songs = rows.filter(r => r.wrapperType === 'track' && r.kind === 'song');
   if (!songs.length) return null;
-
+  songs.sort((a, b) => (a.discNumber || 1) - (b.discNumber || 1) || (a.trackNumber || 0) - (b.trackNumber || 0));
   // The same response carries the album row. It is what the contents screen
   // prints its facts from, so it is read here rather than fetched again —
   // one lookup, both halves (Miyel's contents brief, 2026-09-18).
-  const album = rows.find(r => r.wrapperType === 'collection') || null;
+  return { id: String(id), album: rows.find(r => r.wrapperType === 'collection') || null, songs };
+}
 
-  songs.sort((a, b) => (a.discNumber || 1) - (b.discNumber || 1) || (a.trackNumber || 0) - (b.trackNumber || 0));
+// ── The record as it was made, 2026-10-30 ─────────────────────────────────
+// A record with swearing on it is two on Apple, the explicit one and its
+// clean edit, each with clips of its own. Apple's search now answers with
+// the clean edit alone — DAMN., SOS and IGOR each came back clean and only
+// clean, `explicit=Yes` or not — so every preview played the edit, bleeped
+// (Miyel: "on the music previews, they're censored"). The artist's own list
+// still holds both. So a clean edit is traded for its explicit twin there:
+// the same title, the same year, the same number of songs where there is a
+// choice. None found, and the clean edit stands.
+async function uncutTwin(clean) {
+  if (clean?.collectionExplicitness !== 'cleaned' || !clean.artistId) return null;
+  try {
+    const look = await fetch(`https://itunes.apple.com/lookup?id=${clean.artistId}&entity=album&limit=200`);
+    const lookData = await look.json();
+    const year = String(clean.releaseDate || '').slice(0, 4);
+    const twins = (lookData.results || []).filter(r => r.wrapperType === 'collection'
+      && r.collectionExplicitness === 'explicit'
+      && norm(r.collectionName) === norm(clean.collectionName)
+      && String(r.releaseDate || '').slice(0, 4) === year);
+    const twin = twins.find(r => r.trackCount === clean.trackCount) || twins[0];
+    return twin ? await editionOf(twin.collectionId) : null;
+  } catch { return null; }
+}
+
+// Step 2: every song under one id, in order, with the record's facts off the
+// same answer — the explicit twin's, where the id is a clean edit's.
+async function songsOf(id) {
+  const given = await editionOf(id);
+  if (!given) return null;
+  const uncut = await uncutTwin(given.album);
+  const { album, songs } = uncut || given;
+  // A clean edit sometimes renames a song, not only bleeps it. A title saved
+  // off the edit is still that song, so each song keeps the edit's name for
+  // it beside its own — only where the two lists line up song for song.
+  const editNames = uncut && given.songs.length === songs.length ? given.songs.map(s => s.trackName) : null;
   return {
     tracks: songs
       .map((s, i) => ({
@@ -195,12 +287,17 @@ async function songsOf(id) {
       })),
     facts: factsFrom(album),
     // The id these songs came from — the one worth keeping.
-    collectionId: String(id),
+    collectionId: (uncut || given).id,
     // Thirty seconds of each song, and its address on Apple, for the previews
     // (hooks/useSnippet.js), 2026-10-13. Beside the tracks rather than on
     // them, so a listen's draft, which keeps `tracks`, never stores a link
-    // Apple may retire.
-    clips: songs.map(s => ({ title: s.trackName, clip: s.previewUrl || '', songUrl: s.trackViewUrl || '' })),
+    // Apple may retire. `edit` is the clean edit's title, where it differs.
+    clips: songs.map((s, i) => ({
+      title: s.trackName,
+      edit: editNames && editNames[i] !== s.trackName ? editNames[i] : '',
+      clip: s.previewUrl || '',
+      songUrl: s.trackViewUrl || '',
+    })),
     recordUrl: album?.collectionViewUrl || '',
   };
 }
